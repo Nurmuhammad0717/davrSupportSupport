@@ -29,7 +29,7 @@ import java.util.concurrent.Executors
 
 open class SupportTelegramBot(
     var username: String,
-    token: String,
+    val token: String,
     var botId: Long,
 
     private val userRepository: UserRepository,
@@ -46,6 +46,11 @@ open class SupportTelegramBot(
 ) : TelegramLongPollingBot(token) {
     companion object {
         val activeBots = mutableMapOf<String, SupportTelegramBot>()
+
+        fun findBotById(botId: Long): SupportTelegramBot? {
+            for (bot in activeBots) if (bot.value.botId == botId) return bot.value
+            return null
+        }
     }
 
     override fun getBotUsername() = username
@@ -180,11 +185,6 @@ open class SupportTelegramBot(
                 }
             } else handleSessionMsgForUser(update, user)
         }
-    }
-
-    private fun findBotById(botId: Long): SupportTelegramBot? {
-        for (bot in activeBots) if (bot.value.botId == botId) return bot.value
-        return null
     }
 
     private fun sendMainMenuMsg(user: User) {
