@@ -18,7 +18,7 @@ import java.util.*
 
 @NoRepositoryBean
 interface BaseRepository<T : BaseEntity> : JpaRepository<T, Long>, JpaSpecificationExecutor<T> {
-//    fun findByIdAndDeletedFalse(id: Long): T?
+    //    fun findByIdAndDeletedFalse(id: Long): T?
     fun trash(id: Long): T?
     fun trashList(ids: List<Long>): List<T?>
     fun findAllNotDeleted(): List<T>
@@ -64,18 +64,27 @@ interface UserRepository : JpaRepository<BotUser, Long> {
 }
 
 interface BotMessageRepository : BaseRepository<BotMessage> {
+
+    fun findAllBySessionIdAndDeletedFalse(sessionId: Long): List<BotMessage>
+    fun findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long): List<BotMessage>
+
     fun findByUserIdAndMessageId(userId: Long, messageId: Int): BotMessage?
-    @Query("""
+
+    @Query(
+        """
         SELECT NEW map(m.session as session, m as message)
         FROM bot_message m
         WHERE m.deleted = false
         ORDER BY m.session.id ASC, m.id ASC
-    """)
+    """
+    )
     fun findMessagesGroupedBySessionId(): List<Map<Any, Any>>
 
 }
 
 interface SessionRepository : BaseRepository<Session> {
+
+    fun findAllByStatusAndDeletedFalse(status: SessionStatusEnum): List<Session>
 
     fun findByIdAndDeletedFalse(sessionId: Long): Session?
 
@@ -143,7 +152,7 @@ interface SessionRepository : BaseRepository<Session> {
         """
     SELECT s
     FROM Session s
-    WHERE s.botUser.id = :userId
+    WHERE s.user.id = :userId
       AND s.createdDate BETWEEN :fromDate AND :toDate
     """
     )
@@ -179,7 +188,7 @@ interface SessionRepository : BaseRepository<Session> {
 
     @Query(
         "SELECT s FROM Session s " +
-                "WHERE s.botUser.id = :userId " +
+                "WHERE s.user.id = :userId " +
                 "ORDER BY s.createdDate DESC limit 1"
     )
     fun findLastSessionByUserId(@Param("userId") userId: Long): Session?
@@ -190,7 +199,7 @@ interface SessionRepository : BaseRepository<Session> {
                 "ORDER BY s.createdDate DESC LIMIT 1"
     )
     fun findByOperatorIdAndStatus(operatorId: Long, status: SessionStatusEnum): Session?
-    fun getSessionByBotUserId(userId: Long, pageable: Pageable): Page<Session>
+    fun getSessionByUserId(userId: Long, pageable: Pageable): Page<Session>
     fun getSessionByOperatorId(operatorId: Long, pageable: Pageable): Page<Session>
     fun getSessionByStatus(status: SessionStatusEnum, pageable: Pageable): Page<Session>
 

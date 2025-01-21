@@ -18,9 +18,6 @@ class BotController(private val botService: BotService) {
     @GetMapping("{id}")
     fun getOneBot(@PathVariable id: Long) = botService.getOneBot(id)
 
-    @PutMapping("{id}")
-    fun changeBotStatus(@PathVariable id: Long, @RequestParam status: BotStatusEnum) = botService.changeBotStatus(id, status)
-
     @DeleteMapping("{id}")
     fun deleteBot(@PathVariable id: Long) = botService.deleteBot(id)
 
@@ -57,7 +54,7 @@ class SessionController(private val sessionService: SessionService) {
     @PostMapping("user/{userId}")
     fun getAllSessionUserDateRange(
         @PathVariable userId: Long,
-        @RequestBody dto: DateRangeDTO,
+        @RequestBody dto: DateRangeRequest,
         pageable: Pageable
     ): Page<SessionInfo> {
         return sessionService.getAllSessionUserDateRange(userId, dto, pageable)
@@ -66,7 +63,7 @@ class SessionController(private val sessionService: SessionService) {
     @PostMapping("operator/{operatorId}")
     fun getAllSessionOperatorDateRange(
         @PathVariable operatorId: Long,
-        @RequestBody dto: DateRangeDTO,
+        @RequestBody dto: DateRangeRequest,
         pageable: Pageable
     ): Page<SessionInfo> {
         return sessionService.getAllSessionOperatorDateRange(operatorId, dto, pageable)
@@ -89,7 +86,7 @@ class SessionController(private val sessionService: SessionService) {
 
     @PostMapping("operators/high-rate")
     fun getHighRateOperatorDateRange(
-        @RequestBody dto: DateRangeDTO,
+        @RequestBody dto: DateRangeRequest,
         pageable: Pageable
     ): Page<RateInfo> {
         return sessionService.getHighRateOperatorDateRange(dto, pageable)
@@ -97,7 +94,7 @@ class SessionController(private val sessionService: SessionService) {
 
     @PostMapping("operators/low-rate")
     fun getLowRateOperatorDateRange(
-        @RequestBody dto: DateRangeDTO,
+        @RequestBody dto: DateRangeRequest,
         pageable: Pageable
     ): Page<RateInfo> {
         return sessionService.getLowRateOperatorDateRange(dto, pageable)
@@ -108,7 +105,6 @@ class SessionController(private val sessionService: SessionService) {
         return sessionService.getOperatorRate(operatorId, pageable)
     }
 }
-
 
 
 @RestController
@@ -129,7 +125,22 @@ class PrivateUserController(
 
     @GetMapping("get-user/{id}")
     fun getUserById(@PathVariable id: Long) = userService.getUserById(id)
+}
 
+@RestController
+@RequestMapping("operator")
+class OperatorController(
+    private val messageToOperatorService: MessageToOperatorService
+) {
+
+    @GetMapping("get-sessions")
+    fun getSessions() = messageToOperatorService.getSessions()
+
+    @GetMapping("get-session-messages/{id}")
+    fun getSessionMessages(@PathVariable id: Long) = messageToOperatorService.getSessionMessages(id)
+
+    @GetMapping("getUnreadMessages/{id}")
+    fun getUnreadMessages(@PathVariable id: Long) = messageToOperatorService.getUnreadMessages(id)
 }
 
 @RestController

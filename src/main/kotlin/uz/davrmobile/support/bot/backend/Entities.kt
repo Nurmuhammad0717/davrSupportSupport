@@ -5,6 +5,7 @@ import org.hibernate.annotations.ColumnDefault
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
+import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
 import java.util.*
 
 @MappedSuperclass
@@ -49,15 +50,14 @@ class BotUser(
     }
 }
 
-@Table
-    (
+@Table(
     indexes = [
         Index(columnList = "id, bot_user_id, operator_id")
     ]
 )
 @Entity
 class Session(
-    @ManyToOne val botUser: BotUser,
+    @ManyToOne val user: BotUser,
     val botId: Long,
     @Enumerated(EnumType.STRING) var status: SessionStatusEnum? = SessionStatusEnum.WAITING,
     var operatorId: Long? = null,
@@ -97,28 +97,28 @@ class Bot(
     @ElementCollection var operatorIds: MutableSet<Long> = mutableSetOf()
 ) : BaseEntity()
 
-@Table
-    (
+@Table(
     indexes = [
         Index(columnList = "id, bot_user_id, session_id")
     ]
 )
 @Entity(name = "bot_message")
 class BotMessage(
-    @ManyToOne val botUser: BotUser,
+    @ManyToOne val user: BotUser,
     @ManyToOne val session: Session,
     @Column(nullable = false) val messageId: Int,
-    @Column(nullable = true) var botMessageId: Int? = null,
     @Column(nullable = true) val replyMessageId: Int? = null,
     @Column(nullable = true) var text: String? = null,
+    @Column(nullable = true) var editedText: String? = null,
     @Column(nullable = true) var caption: String? = null,
+    @Column(nullable = true) var editedCaption: String? = null,
     @Enumerated(value = EnumType.STRING) val botMessageType: BotMessageType,
-    @Column(nullable = true) val fileId: String? = null,
+    @OneToOne @JoinColumn(nullable = true) val file: FileInfo? = null,
     @OneToOne @JoinColumn(nullable = true) val location: Location? = null,
     @OneToOne @JoinColumn(nullable = true) val contact: Contact? = null,
-    @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null
+    @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null,
+    var hasRead: Boolean = false,
 ) : BaseEntity()
-
 
 @Entity
 class Contact(
@@ -132,5 +132,5 @@ class FileInfo(
     @Column(nullable = false) val extension: String,
     @Column(nullable = false) val path: String,
     @Column(nullable = false) val size: Long,
-    @Column(nullable = false, unique = true) val hashId: String
-): BaseEntity()
+    @Column(nullable = false, unique = true) val hashId: String = randomHashId(),
+) : BaseEntity()

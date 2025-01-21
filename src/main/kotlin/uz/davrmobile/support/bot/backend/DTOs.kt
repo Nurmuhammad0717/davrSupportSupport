@@ -39,7 +39,7 @@ data class RateInfo(
     val operator: UserResponse,
 )
 
-data class DateRangeDTO(
+data class DateRangeRequest(
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     val fromDate: Date,
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
@@ -65,3 +65,24 @@ data class BotResponse(
         }
     }
 }
+
+data class SessionResponse(
+    val id: Long,
+    val user: BotUser,
+    val botId: Long,
+    val status: SessionStatusEnum,
+    val newMessagesCount: Int
+){
+    companion object {
+        fun toResponse(session: Session, messageCount: Int): SessionResponse {
+            session.run {
+                return SessionResponse(id!!,user,botId,status!!,messageCount)
+            }
+        }
+    }
+}
+
+data class SessionMessagesResponse(
+    val sessionId: Long,
+    val messages : List<BotMessage>
+)
