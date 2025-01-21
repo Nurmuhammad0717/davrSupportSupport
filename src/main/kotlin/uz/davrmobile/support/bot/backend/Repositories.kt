@@ -58,9 +58,9 @@ class BaseRepositoryImpl<T : BaseEntity>(
 
 interface DiceRepository : BaseRepository<Dice> {}
 
-interface UserRepository : JpaRepository<User, Long> {
-    fun findAllByDeletedFalse(): List<User>
-    fun findByIdAndDeletedFalse(id: Long): User?
+interface UserRepository : JpaRepository<BotUser, Long> {
+    fun findAllByDeletedFalse(): List<BotUser>
+    fun findByIdAndDeletedFalse(id: Long): BotUser?
 }
 
 interface BotMessageRepository : BaseRepository<BotMessage> {
@@ -143,7 +143,7 @@ interface SessionRepository : BaseRepository<Session> {
         """
     SELECT s
     FROM Session s
-    WHERE s.user.id = :userId
+    WHERE s.botUser.id = :userId
       AND s.createdDate BETWEEN :fromDate AND :toDate
     """
     )
@@ -179,7 +179,7 @@ interface SessionRepository : BaseRepository<Session> {
 
     @Query(
         "SELECT s FROM Session s " +
-                "WHERE s.user.id = :userId " +
+                "WHERE s.botUser.id = :userId " +
                 "ORDER BY s.createdDate DESC limit 1"
     )
     fun findLastSessionByUserId(@Param("userId") userId: Long): Session?
@@ -190,7 +190,7 @@ interface SessionRepository : BaseRepository<Session> {
                 "ORDER BY s.createdDate DESC LIMIT 1"
     )
     fun findByOperatorIdAndStatus(operatorId: Long, status: SessionStatusEnum): Session?
-    fun getSessionByUserId(userId: Long, pageable: Pageable): Page<Session>
+    fun getSessionByBotUserId(userId: Long, pageable: Pageable): Page<Session>
     fun getSessionByOperatorId(operatorId: Long, pageable: Pageable): Page<Session>
     fun getSessionByStatus(status: SessionStatusEnum, pageable: Pageable): Page<Session>
 

@@ -67,7 +67,7 @@ class SessionServiceImpl(
     }
 
     override fun getAllSessionUser(userId: Long, pageable: Pageable): Page<SessionInfo> {
-        return toSessionInfo(sessionRepository.getSessionByUserId(userId, pageable))
+        return toSessionInfo(sessionRepository.getSessionByBotUserId(userId, pageable))
     }
 
 
@@ -133,7 +133,7 @@ class SessionServiceImpl(
     private fun toSessionInfo(sessions: Page<Session>): Page<SessionInfo> {
         return sessions.map { session ->
             SessionInfo(
-                user = UserResponse.toResponse(session.user),
+                user = UserResponse.toResponse(session.botUser),
                 status = session.status!!,
                 operatorId = session.operatorId,
                 rate = session.rate
@@ -143,7 +143,7 @@ class SessionServiceImpl(
 
     private fun toSessionInfo(session: Session): SessionInfo {
         return SessionInfo(
-            user = UserResponse.toResponse(session.user),
+            user = UserResponse.toResponse(session.botUser),
             status = session.status!!,
             operatorId = session.operatorId,
             rate = session.rate
@@ -152,7 +152,7 @@ class SessionServiceImpl(
 
     private fun toRateInfo(results: Page<Array<Any>>): Page<RateInfo> {
         return results.map { result ->
-            val operator = result[0] as User
+            val operator = result[0] as BotUser
             val totalRate = result[1] as Number
             val roundedRate = round(totalRate.toDouble() * 100) / 100
             RateInfo(rate = roundedRate, operator = UserResponse.toResponse(operator))

@@ -24,15 +24,15 @@ class BaseUserEntity(
     @Column(nullable = false) @ColumnDefault(value = "false") var deleted: Boolean = false
 )
 
-@Entity(name = "users")
-class User(
+@Entity(name = "bot_user")
+class BotUser(
     @Id @Column(nullable = false) var id: Long,
     @Column(nullable = false, length = 64) val username: String,
     @Column(nullable = false, length = 124) var fullName: String,
     @Column(nullable = false, length = 13) var phoneNumber: String,
     @Column(nullable = false) var botId: Long,
     @ElementCollection(targetClass = LanguageEnum::class, fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_language", joinColumns = [JoinColumn(name = "user_id")])
+    @CollectionTable(name = "bot_user_language", joinColumns = [JoinColumn(name = "bot_user_id")])
     @Enumerated(EnumType.STRING)
     var languages: MutableSet<LanguageEnum> = mutableSetOf(),
     @Enumerated(value = EnumType.STRING) var state: UserStateEnum = UserStateEnum.NEW_USER,
@@ -52,12 +52,12 @@ class User(
 @Table
     (
     indexes = [
-        Index(columnList = "id, user_id, operator_id")
+        Index(columnList = "id, bot_user_id, operator_id")
     ]
 )
 @Entity
 class Session(
-    @ManyToOne val user: User,
+    @ManyToOne val botUser: BotUser,
     val botId: Long,
     @Enumerated(EnumType.STRING) var status: SessionStatusEnum? = SessionStatusEnum.WAITING,
     var operatorId: Long? = null,
@@ -100,12 +100,12 @@ class Bot(
 @Table
     (
     indexes = [
-        Index(columnList = "id, user_id, session_id")
+        Index(columnList = "id, bot_user_id, session_id")
     ]
 )
 @Entity(name = "bot_message")
 class BotMessage(
-    @ManyToOne val user: User,
+    @ManyToOne val botUser: BotUser,
     @ManyToOne val session: Session,
     @Column(nullable = false) val messageId: Int,
     @Column(nullable = true) var botMessageId: Int? = null,
@@ -113,9 +113,7 @@ class BotMessage(
     @Column(nullable = true) var text: String? = null,
     @Column(nullable = true) var caption: String? = null,
     @Enumerated(value = EnumType.STRING) val botMessageType: BotMessageType,
-
     @Column(nullable = true) val fileId: String? = null,
-
     @OneToOne @JoinColumn(nullable = true) val location: Location? = null,
     @OneToOne @JoinColumn(nullable = true) val contact: Contact? = null,
     @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null
