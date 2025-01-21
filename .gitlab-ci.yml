@@ -1,0 +1,4 @@
+include:
+  - project: davrmobile-2.0/backend/gitlab-ci
+    ref: main
+    file: support.yml
