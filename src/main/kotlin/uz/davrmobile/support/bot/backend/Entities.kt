@@ -112,7 +112,7 @@ class BotMessage(
     @Column(nullable = true) var text: String? = null,
     @Column(nullable = true) var caption: String? = null,
     @Enumerated(value = EnumType.STRING) val botMessageType: BotMessageType,
-    @Column(nullable = true) val fileId: String? = null,
+    @OneToOne @JoinColumn(nullable = true) val file: FileInfo? =null,
     @OneToOne @JoinColumn(nullable = true) val location: Location? = null,
     @OneToOne @JoinColumn(nullable = true) val contact: Contact? = null,
     @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null
@@ -124,3 +124,13 @@ class Contact(
     @Column(nullable = false) val name: String,
     @Column(nullable = false) val phoneNumber: String,
 ) : BaseEntity()
+
+@Entity
+class FileInfo(
+    @Column(nullable = false) var name: String,
+    @Column(nullable = false) val extension: String,
+    @Column(nullable = false) val contentType: String,
+    @Column(nullable = false) val path: String,
+    @Column(nullable = false) val size: Long,
+    @Column(nullable = false, unique = true) val hashId: String
+): BaseEntity()
