@@ -9,6 +9,7 @@ import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScope
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
 import uz.davrmobile.support.bot.backend.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot.Companion.activeBots
+import uz.davrmobile.support.bot.bot.SupportTelegramBot.Companion.findBotById
 
 
 @Service
@@ -50,6 +51,19 @@ class BotService(
         telegramBot.registerBot(bot)
     }
 
+    private fun stopBot(botId: Long) {
+        findBotById(botId)?.let { tgBot ->
+            val botOpt = botRepository.findById(tgBot.botId)
+            if (botOpt.isPresent) {
+                val bot = botOpt.get()
+                bot.status = BotStatusEnum.STOPPED
+                botRepository.save(bot)
+                return
+            }
+        }
+        throw BotNotFoundException()
+    }
+
     fun setDefaultBotCommands(bot: SupportTelegramBot) {
         val commandsEN = listOf(
             BotCommand("/start", bot.getMsgByLang("START", LanguageEnum.EN)),
@@ -70,30 +84,25 @@ class BotService(
 
     fun getAllBots(): List<BotResponse> {
         return botRepository.findAllNotDeleted().map {
-             BotResponse.torResponse(it)
-         }
-    }
-
-    fun getAllActiveBots(): List<BotResponse> {
-       return botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE).map {
-           BotResponse.torResponse(it)
-       }
-    }
-
-    fun getOneBot(botId: Long): BotResponse? {
-       return botRepository.findByIdAndDeletedFalse(botId)?.let {
-            BotResponse.torResponse(it) ?: throw BotNOtFoundException()
+            BotResponse.torResponse(it)
         }
     }
 
-    fun changeBotStatus(botId: Long, status: BotStatusEnum) {
-        val bot = botRepository.findByIdAndDeletedFalse(botId) ?: throw BotNOtFoundException()
-        bot.status = status
-        botRepository.save(bot)
+    fun getAllActiveBots(): List<BotResponse> {
+        return botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE).map {
+            BotResponse.torResponse(it)
+        }
+    }
+
+    fun getOneBot(botId: Long): BotResponse? {
+        return botRepository.findByIdAndDeletedFalse(botId)?.let {
+            BotResponse.torResponse(it)
+        } ?: throw BotNotFoundException()
     }
 
     fun deleteBot(botId: Long) {
-        botRepository.trash(botId)?: throw BotNOtFoundException()
+        stopBot(botId)
+        botRepository.deleteById(botId)
     }
 
 }

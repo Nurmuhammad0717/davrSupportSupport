@@ -17,9 +17,6 @@ class BotController(private val botService: BotService) {
     @GetMapping("{id}")
     fun getOneBot(@PathVariable id: Long) = botService.getOneBot(id)
 
-    @PutMapping("{id}")
-    fun changeBotStatus(@PathVariable id: Long, @RequestParam status: BotStatusEnum) = botService.changeBotStatus(id, status)
-
     @DeleteMapping("{id}")
     fun deleteBot(@PathVariable id: Long) = botService.deleteBot(id)
 
@@ -109,7 +106,6 @@ class SessionController(private val sessionService: SessionService) {
 }
 
 
-
 @RestController
 @RequestMapping("private/manage-users")
 class PrivateUserController(
@@ -128,5 +124,10 @@ class PrivateUserController(
 
     @GetMapping("get-user/{id}")
     fun getUserById(@PathVariable id: Long) = userService.getUserById(id)
+}
+
+@RestController
+@RequestMapping("operator")
+class OperatorController {
 
 }
