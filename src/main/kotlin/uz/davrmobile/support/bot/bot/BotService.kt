@@ -28,7 +28,7 @@ class BotService(
         val supportTelegramBot = SupportTelegramBot(
             "",
             req.token,
-            1L,
+            -1L,
             userRepository,
             botMessageRepository,
             locationRepository,
@@ -58,6 +58,7 @@ class BotService(
                 val bot = botOpt.get()
                 bot.status = BotStatusEnum.STOPPED
                 botRepository.save(bot)
+                activeBots.remove(tgBot.token)
                 return
             }
         }

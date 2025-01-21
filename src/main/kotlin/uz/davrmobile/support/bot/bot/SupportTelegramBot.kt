@@ -8,8 +8,6 @@ import org.telegram.telegrambots.meta.api.methods.ParseMode
 import org.telegram.telegrambots.meta.api.methods.send.SendChatAction
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
@@ -309,10 +307,10 @@ open class SupportTelegramBot(
         val editedMessage = update.editedMessage
         val chatId = editedMessage.from.id
         val messageId = editedMessage.messageId
-        val newText = editedMessage.text
-        val newCaption = editedMessage.caption
+        val editedText = editedMessage.text
+        val editedCaption = editedMessage.caption
 
-        editMessage(chatId, messageId, newText, newCaption)
+        editMessage(chatId, messageId, editedText, editedCaption)
     }
 
     @Transactional
@@ -355,7 +353,7 @@ open class SupportTelegramBot(
                     setRate(sessionId, rate)
                     this.execute(
                         AnswerCallbackQuery(
-                            callbackQuery.id, getMsg("THANK_YOU", user), false, null, null
+                            callbackQuery.id, getMsg("THANK_YOU", user), true, null, null
                         )
                     )
                     this.execute(DeleteMessage(chatId.toString(), callbackQuery.message.messageId))
@@ -365,49 +363,32 @@ open class SupportTelegramBot(
     }
 
     @Transactional
-    open fun editMessage(chatId: Long, messageId: Int, newText: String?, newCaption: String?) {
-        val message = botMessageRepository.findByUserIdAndMessageId(chatId, messageId)
-            ?: throw IllegalArgumentException("Message with ID $messageId not found")
+    open fun editMessage(chatId: Long, messageId: Int, editedText: String?, editedCaption: String?) {
+        botMessageRepository.findByUserIdAndMessageId(chatId, messageId)?.let { message ->
+            editedText?.let {
+                if (message.botMessageType == BotMessageType.TEXT) {
+                    message.editedText = it
+                    botMessageRepository.save(message)
 
-        if (!newText.isNullOrBlank() && message.botMessageType == BotMessageType.TEXT) {
-            message.text = newText
-            if (message.botMessageId != null) {
-                if (message.session.user.id == chatId) {
-                    val editMessage = EditMessageText(newText)
-                    editMessage.messageId = message.botMessageId!!
-                    editMessage.chatId = message.session.operatorId.toString()
-                    this.execute(editMessage)
-                } else {
-                    val editMessage = EditMessageText(newText)
-                    editMessage.messageId = message.botMessageId!!
-                    editMessage.chatId = message.session.user.id.toString()
-                    this.execute(editMessage)
+                    //TODO send edited message to operator
+                }
+            }
+
+            editedCaption?.let {
+                if (message.botMessageType in listOf(
+                        BotMessageType.PHOTO,
+                        BotMessageType.VIDEO,
+                        BotMessageType.DOCUMENT,
+                        BotMessageType.ANIMATION
+                    )
+                ) {
+                    message.editedCaption = it
+                    botMessageRepository.save(message)
+
+                    //TODO send edited message to operator
                 }
             }
         }
-
-        if (!newCaption.isNullOrBlank() &&
-            message.botMessageType in listOf(
-                BotMessageType.PHOTO,
-                BotMessageType.VIDEO,
-                BotMessageType.DOCUMENT,
-                BotMessageType.ANIMATION
-            )
-        ) {
-            message.caption = newCaption
-            if (message.botMessageId != null) {
-                val editMessage = EditMessageCaption()
-                editMessage.caption = newCaption
-                editMessage.messageId = message.botMessageId!!
-                if (message.session.user.id == chatId) {
-                    editMessage.chatId = message.session.operatorId.toString()
-                } else {
-                    editMessage.chatId = message.session.user.id.toString()
-                }
-                this.execute(editMessage)
-            }
-        }
-        botMessageRepository.save(message)
     }
 
     @Synchronized

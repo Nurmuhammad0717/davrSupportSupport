@@ -49,8 +49,7 @@ class BotUser(
     }
 }
 
-@Table
-    (
+@Table(
     indexes = [
         Index(columnList = "id, bot_user_id, operator_id")
     ]
@@ -97,8 +96,7 @@ class Bot(
     @ElementCollection var operatorIds: MutableSet<Long> = mutableSetOf()
 ) : BaseEntity()
 
-@Table
-    (
+@Table(
     indexes = [
         Index(columnList = "id, bot_user_id, session_id")
     ]
@@ -108,17 +106,17 @@ class BotMessage(
     @ManyToOne val user: BotUser,
     @ManyToOne val session: Session,
     @Column(nullable = false) val messageId: Int,
-    @Column(nullable = true) var botMessageId: Int? = null,
     @Column(nullable = true) val replyMessageId: Int? = null,
     @Column(nullable = true) var text: String? = null,
+    @Column(nullable = true) var editedText: String? = null,
     @Column(nullable = true) var caption: String? = null,
+    @Column(nullable = true) var editedCaption: String? = null,
     @Enumerated(value = EnumType.STRING) val botMessageType: BotMessageType,
     @Column(nullable = true) val fileId: String? = null,
     @OneToOne @JoinColumn(nullable = true) val location: Location? = null,
     @OneToOne @JoinColumn(nullable = true) val contact: Contact? = null,
     @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null
 ) : BaseEntity()
-
 
 @Entity
 class Contact(
