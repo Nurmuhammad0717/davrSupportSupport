@@ -1,4 +1,4 @@
-package uz.likwer.zeroonetask4supportbot.bot.bot
+package uz.davrmobile.support.bot.bot
 
 class Utils {
     companion object {

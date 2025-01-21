@@ -1,7 +1,6 @@
-package uz.likwer.zeroonetask4supportbot.bot.bot
+package uz.davrmobile.support.bot.bot
 
 import org.springframework.context.MessageSource
-import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands
@@ -9,8 +8,6 @@ import org.telegram.telegrambots.meta.api.objects.commands.BotCommand
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
 import uz.davrmobile.support.bot.backend.*
-import uz.davrmobile.support.bot.bot.SupportTelegramBot
-import uz.likwer.zeroonetask4supportbot.bot.backend.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot.Companion.activeBots
 
 
@@ -23,21 +20,8 @@ class BotService(
     private val diceRepository: DiceRepository,
     private val sessionRepository: SessionRepository,
     private val messageSource: MessageSource,
-    private val doubleOperatorRepository: DoubleOperatorRepository,
     private val botRepository: BotRepository,
 ) {
-    @Scheduled(fixedDelay = 5_000)
-    fun contactActiveOperatorScheduled() {
-        val activeOperators = userRepository.findFirstActiveOperator(UserRole.OPERATOR, OperatorStatus.ACTIVE)
-        for (activeOperator in activeOperators) {
-            var isConnected = false
-            for (bot in activeBots) {
-                if (!isConnected) {
-                    isConnected = bot.value.contactActiveOperator(activeOperator)
-                }
-            }
-        }
-    }
 
     fun createBot(req: TokenRequest) {
         val supportTelegramBot = SupportTelegramBot(
@@ -51,7 +35,6 @@ class BotService(
             diceRepository,
             sessionRepository,
             messageSource,
-            doubleOperatorRepository
         )
         val me = supportTelegramBot.meAsync.get()
         val savedBot = botRepository.save(Bot(req.token, me.userName, me.firstName))

@@ -2,13 +2,7 @@ package uz.davrmobile.support.bot.backend
 
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
-import org.springframework.security.authentication.AuthenticationProvider
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
-import org.springframework.security.core.userdetails.UserDetails
-import org.springframework.security.core.userdetails.UserDetailsService
-import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
-import uz.likwer.zeroonetask4supportbot.bot.backend.*
 import kotlin.math.round
 
 interface UserService {

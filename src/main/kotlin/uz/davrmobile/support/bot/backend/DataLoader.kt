@@ -3,7 +3,7 @@ package uz.davrmobile.support.bot.backend
 import org.springframework.boot.CommandLineRunner
 import org.springframework.context.MessageSource
 import org.springframework.stereotype.Component
-import uz.likwer.zeroonetask4supportbot.bot.bot.BotService
+import uz.davrmobile.support.bot.bot.BotService
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
 import uz.davrmobile.support.bot.bot.SupportTelegramBot.Companion.activeBots
 import java.util.concurrent.CopyOnWriteArrayList
@@ -18,7 +18,6 @@ class DataLoader(
     private val diceRepository: DiceRepository,
     private val sessionRepository: SessionRepository,
     private val messageSource: MessageSource,
-    private val doubleOperatorRepository: DoubleOperatorRepository,
     private val botService: BotService,
 ) : CommandLineRunner {
     override fun run(vararg args: String?) {
@@ -35,7 +34,6 @@ class DataLoader(
                 diceRepository,
                 sessionRepository,
                 messageSource,
-                doubleOperatorRepository
             )
             val me = supportTelegramBot.meAsync.get()
             supportTelegramBot.botId = bot.id!!

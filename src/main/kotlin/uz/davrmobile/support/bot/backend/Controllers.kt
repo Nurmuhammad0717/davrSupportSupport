@@ -3,7 +3,7 @@ package uz.davrmobile.support.bot.backend
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.web.bind.annotation.*
-import uz.likwer.zeroonetask4supportbot.bot.bot.BotService
+import uz.davrmobile.support.bot.bot.BotService
 
 @RestController
 @RequestMapping("/bot")
@@ -112,19 +112,6 @@ class SessionController(private val sessionService: SessionService) {
     }
 }
 
-@RestController
-@RequestMapping("messages")
-class MessageController(private val messageService: MessageService) {
-
-//    @GetMapping("most-send-operators")
-//    fun getMostSendMessageOperators(pageable: Pageable): Page<MessageInfo> {
-//        return messageService.getMostSendMessageOperators(pageable)
-//    }
-//    @GetMapping("most-send-users")
-//    fun getMostSendMessageUsers(pageable: Pageable): Page<MessageInfo> {
-//        return messageService.getMostSendMessageUsers(pageable)
-//    }
-}
 
 
 @RestController
@@ -133,18 +120,8 @@ class PrivateUserController(
     private val userService: UserService,
     private val sessionService: SessionService
 ) {
-
-    @PutMapping("add-operator")
-    fun addOperator(@RequestBody request: AddOperatorRequest) = userService.addOperator(request)
-
-    @GetMapping("get-operators")
-    fun getOperators() = userService.getAllOperators()
-
     @GetMapping("get-users")
     fun getUsers() = userService.getAllUsers()
-
-    @DeleteMapping("delete-operator/{operatorId}")
-    fun deleteOperator(@PathVariable operatorId: Long) = userService.deleteOperator(operatorId)
 
     @DeleteMapping("delete-user/{userId}")
     fun deleteUser(@PathVariable userId: Long) = userService.deleteUser(userId)
@@ -153,14 +130,7 @@ class PrivateUserController(
     fun getAllSessionUser(@PathVariable userId: Long, pageable: Pageable) =
         sessionService.getAllSessionUser(userId, pageable)
 
-    @GetMapping("get-operator/{id}")
-    fun getOperatorById(@PathVariable id: Long) = userService.getOperatorById(id)
-
     @GetMapping("get-user/{id}")
     fun getUserById(@PathVariable id: Long) = userService.getUserById(id)
-
-//    @GetMapping("get-sessions-of-operator/{operatorId}")
-//    fun getAllSessionOperator(@PathVariable operatorId: Long, pageable: Pageable ) = sessionService.getAllSessionUser(operatorId,pageable)
-
 
 }

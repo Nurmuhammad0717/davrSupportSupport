@@ -19,8 +19,8 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow
 import uz.davrmobile.support.bot.backend.*
-import uz.likwer.zeroonetask4supportbot.bot.bot.Utils.Companion.clearPhone
-import uz.likwer.zeroonetask4supportbot.bot.bot.Utils.Companion.htmlBold
+import uz.davrmobile.support.bot.bot.Utils.Companion.clearPhone
+import uz.davrmobile.support.bot.bot.Utils.Companion.htmlBold
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
