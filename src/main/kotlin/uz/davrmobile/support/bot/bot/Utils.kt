@@ -1,7 +1,16 @@
 package uz.davrmobile.support.bot.bot
 
+import java.util.*
+
 class Utils {
     companion object {
+        fun randomHashId(): String {
+            return UUID.randomUUID().toString().substringAfterLast("-") +
+                    UUID.randomUUID().toString().substringAfterLast("-") +
+                    UUID.randomUUID().toString().substringAfterLast("-") +
+                    UUID.randomUUID().toString().substringAfterLast("-")
+        }
+
         fun String.prettyPhoneNumber(): String {
             return try {
                 var phone = this.trim()

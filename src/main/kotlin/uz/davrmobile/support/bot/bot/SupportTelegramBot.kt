@@ -4,10 +4,12 @@ import org.springframework.context.MessageSource
 import org.springframework.transaction.annotation.Transactional
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery
+import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.methods.ParseMode
 import org.telegram.telegrambots.meta.api.methods.send.SendChatAction
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
+import org.telegram.telegrambots.meta.api.objects.File
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
@@ -19,9 +21,8 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import uz.davrmobile.support.bot.backend.*
 import uz.davrmobile.support.bot.bot.Utils.Companion.clearPhone
 import uz.davrmobile.support.bot.bot.Utils.Companion.htmlBold
+import java.io.FileOutputStream
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
@@ -37,10 +38,9 @@ open class SupportTelegramBot(
     private val diceRepository: DiceRepository,
     private val sessionRepository: SessionRepository,
     private val messageSource: MessageSource,
+    private val fileInfoRepository: FileInfoRepository,
+
     private val executorService: Executor = Executors.newFixedThreadPool(20),
-    val queueEn: ConcurrentHashMap<Long, CopyOnWriteArrayList<BotMessage>> = ConcurrentHashMap<Long, CopyOnWriteArrayList<BotMessage>>(),
-    val queueUz: ConcurrentHashMap<Long, CopyOnWriteArrayList<BotMessage>> = ConcurrentHashMap<Long, CopyOnWriteArrayList<BotMessage>>(),
-    val queueRu: ConcurrentHashMap<Long, CopyOnWriteArrayList<BotMessage>> = ConcurrentHashMap<Long, CopyOnWriteArrayList<BotMessage>>()
 ) : TelegramLongPollingBot(token) {
     companion object {
         val activeBots = mutableMapOf<String, SupportTelegramBot>()
@@ -262,6 +262,10 @@ open class SupportTelegramBot(
         val contact = saveContact(message)
         val dice = saveDice(message)
 
+        val fileInfo = typeAndFileId.second?.let { fileId ->
+            downloadAndSaveFile(fileId)
+        }
+
         return botMessageRepository.save(
             BotMessage(
                 user = user,
@@ -271,10 +275,31 @@ open class SupportTelegramBot(
                 botMessageType = typeAndFileId.first,
                 text = message.text,
                 caption = message.caption,
-                fileId = typeAndFileId.second,
+                file = fileInfo,
                 location = location,
                 contact = contact,
                 dice = dice
+            )
+        )
+    }
+
+    private fun downloadAndSaveFile(fileId: String): FileInfo {
+        val fileFromTelegram = this.execute(GetFile(fileId))
+        val inputStream = this.downloadFileAsStream(fileFromTelegram)
+        val fileName = fileFromTelegram.filePath.substringAfterLast("/") +
+                UUID.randomUUID().toString().replace("-", "")
+        val filePath = "./files/$fileName"
+        FileOutputStream(filePath).use { outputStream ->
+            inputStream.copyTo(outputStream)
+        }
+
+        val fileExtension = fileName.substringAfterLast(".")
+        val fileSize = fileFromTelegram.fileSize
+        return fileInfoRepository.save(
+            FileInfo(
+                fileFromTelegram.filePath.substringAfterLast("/").substringBeforeLast("."),
+                fileExtension,
+                filePath, fileSize
             )
         )
     }

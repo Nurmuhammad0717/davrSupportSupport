@@ -18,7 +18,7 @@ import java.util.*
 
 @NoRepositoryBean
 interface BaseRepository<T : BaseEntity> : JpaRepository<T, Long>, JpaSpecificationExecutor<T> {
-//    fun findByIdAndDeletedFalse(id: Long): T?
+    //    fun findByIdAndDeletedFalse(id: Long): T?
     fun trash(id: Long): T?
     fun trashList(ids: List<Long>): List<T?>
     fun findAllNotDeleted(): List<T>
@@ -68,12 +68,15 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
     fun findAllBySessionIdAndDeletedFalse(sessionId: Long): List<BotMessage>
 
     fun findByUserIdAndMessageId(userId: Long, messageId: Int): BotMessage?
-    @Query("""
+
+    @Query(
+        """
         SELECT NEW map(m.session as session, m as message)
         FROM bot_message m
         WHERE m.deleted = false
         ORDER BY m.session.id ASC, m.id ASC
-    """)
+    """
+    )
     fun findMessagesGroupedBySessionId(): List<Map<Any, Any>>
 
 }
@@ -209,5 +212,8 @@ interface BotRepository : BaseRepository<Bot> {
     fun findAllBotsByStatusAndDeletedFalse(status: BotStatusEnum): List<Bot>
     fun findByIdAndDeletedFalse(id: Long): Bot?
 }
+
+interface FileInfoRepository : BaseRepository<FileInfo>
+
 
 

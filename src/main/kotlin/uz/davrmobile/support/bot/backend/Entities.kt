@@ -5,6 +5,7 @@ import org.hibernate.annotations.ColumnDefault
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
+import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
 import java.util.*
 
 @MappedSuperclass
@@ -112,7 +113,7 @@ class BotMessage(
     @Column(nullable = true) var caption: String? = null,
     @Column(nullable = true) var editedCaption: String? = null,
     @Enumerated(value = EnumType.STRING) val botMessageType: BotMessageType,
-    @OneToOne @JoinColumn(nullable = true) val file: FileInfo? =null,
+    @OneToOne @JoinColumn(nullable = true) val file: FileInfo? = null,
     @OneToOne @JoinColumn(nullable = true) val location: Location? = null,
     @OneToOne @JoinColumn(nullable = true) val contact: Contact? = null,
     @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null
@@ -128,8 +129,7 @@ class Contact(
 class FileInfo(
     @Column(nullable = false) var name: String,
     @Column(nullable = false) val extension: String,
-    @Column(nullable = false) val contentType: String,
     @Column(nullable = false) val path: String,
     @Column(nullable = false) val size: Long,
-    @Column(nullable = false, unique = true) val hashId: String
-): BaseEntity()
+    @Column(nullable = false, unique = true) val hashId: String = randomHashId(),
+) : BaseEntity()

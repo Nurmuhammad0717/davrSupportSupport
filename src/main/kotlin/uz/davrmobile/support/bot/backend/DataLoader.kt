@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component
 import uz.davrmobile.support.bot.bot.BotService
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
 import uz.davrmobile.support.bot.bot.SupportTelegramBot.Companion.activeBots
-import java.util.concurrent.CopyOnWriteArrayList
 
 @Component
 class DataLoader(
@@ -19,8 +18,15 @@ class DataLoader(
     private val sessionRepository: SessionRepository,
     private val messageSource: MessageSource,
     private val botService: BotService,
+    private val fileInfoRepository: FileInfoRepository,
 ) : CommandLineRunner {
     override fun run(vararg args: String?) {
+        val dir = java.io.File("./files")
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+
+
         val bots = botRepository.findAllByStatus(BotStatusEnum.ACTIVE)
         for (bot in bots) {
             val supportTelegramBot = SupportTelegramBot(
@@ -34,6 +40,7 @@ class DataLoader(
                 diceRepository,
                 sessionRepository,
                 messageSource,
+                fileInfoRepository
             )
             val me = supportTelegramBot.meAsync.get()
             supportTelegramBot.botId = bot.id!!
@@ -41,38 +48,6 @@ class DataLoader(
 
             botService.registerBot(supportTelegramBot)
             activeBots[bot.token] = supportTelegramBot
-        }
-    }
-
-    @Component
-    class LoadMessagesToQueues(
-        private val botMessageRepository: BotMessageRepository
-    ) : CommandLineRunner {
-        override fun run(vararg args: String?) {
-            val groupedMessages = botMessageRepository.findMessagesGroupedBySessionId()
-
-            val sessionMessagesMap = groupedMessages.groupBy {
-                it["session"] as Session
-            }.mapValues { entry ->
-                entry.value.map { it["message"] as BotMessage }
-            }
-
-            sessionMessagesMap.forEach { (session, messages) ->
-                for (bot in activeBots) {
-                    if (bot.value.botId == session.botId) {
-                        val firstMessage = messages.firstOrNull() ?: return@forEach
-                        val language = firstMessage.user.languages.firstOrNull() ?: LanguageEnum.EN
-
-                        val messagesList = CopyOnWriteArrayList(messages)
-
-                        when (language) {
-                            LanguageEnum.UZ -> bot.value.queueUz[session.id!!] = messagesList
-                            LanguageEnum.EN -> bot.value.queueEn[session.id!!] = messagesList
-                            LanguageEnum.RU -> bot.value.queueRu[session.id!!] = messagesList
-                        }
-                    }
-                }
-            }
         }
     }
 }
