@@ -128,6 +128,17 @@ class PrivateUserController(
 
 @RestController
 @RequestMapping("operator")
-class OperatorController {
+class OperatorController(
+    private val messageToOperatorService: MessageToOperatorService
+) {
 
+    @GetMapping("get-sessions")
+    fun getSessions() = messageToOperatorService.getSessions()
+
+    @GetMapping("get-session-messages/{id}")
+    fun getSessionMessages(@PathVariable id: Long) = messageToOperatorService.getSessionMessages(id)
+
+    @GetMapping("getUnreadMessages/{id}")
+    fun getUnreadMessages(@PathVariable id: Long) = messageToOperatorService.getUnreadMessages(id)
 }
+
