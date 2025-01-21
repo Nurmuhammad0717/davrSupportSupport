@@ -3,6 +3,9 @@ package uz.davrmobile.support.bot.backend
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
+import org.springframework.web.multipart.MultipartFile
+import java.time.LocalDate
+import java.util.*
 import kotlin.math.round
 
 interface UserService {
@@ -16,14 +19,18 @@ interface SessionService {
     fun getOne(id: Long): SessionInfo
     fun getAllSessionUser(userId: Long, pageable: Pageable): Page<SessionInfo>
     fun getAllSessionOperator(operatorId: Long, pageable: Pageable): Page<SessionInfo>
-    fun getAllSessionUserDateRange(userId: Long, dto: DateRangeDTO, pageable: Pageable): Page<SessionInfo>
-    fun getAllSessionOperatorDateRange(operatorId: Long, dto: DateRangeDTO, pageable: Pageable): Page<SessionInfo>
+    fun getAllSessionUserDateRange(userId: Long, dto: DateRangeRequest, pageable: Pageable): Page<SessionInfo>
+    fun getAllSessionOperatorDateRange(operatorId: Long, dto: DateRangeRequest, pageable: Pageable): Page<SessionInfo>
     fun getSessionsByStatus(status: SessionStatusEnum, pageable: Pageable): Page<SessionInfo>
     fun getHighRateOperator(pageable: Pageable): Page<RateInfo>
     fun getLowRateOperator(pageable: Pageable): Page<RateInfo>
-    fun getHighRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo>
-    fun getLowRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo>
+    fun getHighRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo>
+    fun getLowRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo>
     fun getOperatorRate(operatorId: Long, pageable: Pageable): Page<RateInfo>
+}
+
+interface FileInfoService{
+    fun upload(multipartFile: MultipartFile)
 }
 
 @Service
@@ -77,7 +84,7 @@ class SessionServiceImpl(
 
     override fun getAllSessionUserDateRange(
         userId: Long,
-        dto: DateRangeDTO,
+        dto: DateRangeRequest,
         pageable: Pageable
     ): Page<SessionInfo> {
         return toSessionInfo(
@@ -92,7 +99,7 @@ class SessionServiceImpl(
 
     override fun getAllSessionOperatorDateRange(
         operatorId: Long,
-        dto: DateRangeDTO,
+        dto: DateRangeRequest,
         pageable: Pageable
     ): Page<SessionInfo> {
         return toSessionInfo(
@@ -117,11 +124,11 @@ class SessionServiceImpl(
         return toRateInfo(sessionRepository.findLowestRatedOperators(pageable))
     }
 
-    override fun getHighRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo> {
+    override fun getHighRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo> {
         return toRateInfo(sessionRepository.findHighestRatedOperatorsByDateRange(dto.fromDate, dto.toDate, pageable))
     }
 
-    override fun getLowRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo> {
+    override fun getLowRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo> {
         return toRateInfo(sessionRepository.findLowestRatedOperatorsByDateRange(dto.fromDate, dto.toDate, pageable))
 
     }
@@ -133,7 +140,7 @@ class SessionServiceImpl(
     private fun toSessionInfo(sessions: Page<Session>): Page<SessionInfo> {
         return sessions.map { session ->
             SessionInfo(
-                user = UserResponse.toResponse(session.botUser),
+                user = UserResponse.toResponse(session.user),
                 status = session.status!!,
                 operatorId = session.operatorId,
                 rate = session.rate
@@ -143,7 +150,7 @@ class SessionServiceImpl(
 
     private fun toSessionInfo(session: Session): SessionInfo {
         return SessionInfo(
-            user = UserResponse.toResponse(session.botUser),
+            user = UserResponse.toResponse(session.user),
             status = session.status!!,
             operatorId = session.operatorId,
             rate = session.rate
@@ -157,6 +164,35 @@ class SessionServiceImpl(
             val roundedRate = round(totalRate.toDouble() * 100) / 100
             RateInfo(rate = roundedRate, operator = UserResponse.toResponse(operator))
         }
+    }
+}
+
+interface MessageToOperatorService{
+
+    fun getSessions(): List<SessionResponse>
+
+    fun getSessionMessages(sessionId: Long):SessionMessagesResponse
+
+}
+
+class MessageToOperatorServiceImpl(
+
+    private val userService: UserService,
+    private val sessionRepository: SessionRepository,
+    private val botMessageRepository: BotMessageRepository
+
+): MessageToOperatorService {
+    override fun getSessions(): List<SessionResponse> {
+        val waitingSessions = sessionRepository.findAllByStatusAndDeletedFalse(SessionStatusEnum.WAITING)
+       return waitingSessions.map {
+           val count = botMessageRepository.findAllBySessionIdAndDeletedFalse(it.id!!).count()
+           SessionResponse.toResponse(it,count)
+        }
+    }
+
+    override fun getSessionMessages(sessionId: Long): SessionMessagesResponse {
+        val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(sessionId)
+        return SessionMessagesResponse(sessionId,messages)
     }
 }
 
