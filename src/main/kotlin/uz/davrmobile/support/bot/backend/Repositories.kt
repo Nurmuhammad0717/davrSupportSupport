@@ -59,43 +59,12 @@ class BaseRepositoryImpl<T : BaseEntity>(
 interface DiceRepository : BaseRepository<Dice> {}
 
 interface UserRepository : JpaRepository<User, Long> {
-
-    fun existsByRole(role: UserRole): Boolean
-    fun findAllByRoleAndDeletedFalse(userRole: UserRole): List<User>
-    fun findFirstByRoleAndOperatorStatusAndDeletedFalseOrderByModifiedDateAsc(
-        role: UserRole,
-        operatorStatus: OperatorStatus
-    ): User?
-
-    @Query(
-        """
-        SELECT u
-        FROM users u
-        WHERE u.role = :role
-          AND u.operatorStatus = :status
-        ORDER BY u.modifiedDate ASC
-    """
-    )
-    fun findFirstActiveOperator(
-        @Param("role") role: UserRole,
-        @Param("status") status: OperatorStatus
-    ): List<User>
-
     fun findAllByDeletedFalse(): List<User>
     fun findByIdAndDeletedFalse(id: Long): User?
-    fun findByIdAndRoleAndDeletedFalse(id: Long,role: UserRole): User?
-
 }
 
 interface BotMessageRepository : BaseRepository<BotMessage> {
-//    fun findByUserIdAndMessageBotId(userId: Long, messageBotId: Int): BotMessage?
-//    fun findAllBySessionId(sessionId: Long): List<BotMessage>
-//    fun findAllByUserId(userId: Long): List<BotMessage>
-    fun findBySessionIdAndBotMessageId(sessionId: Long, messageBotId: Int): BotMessage?
-    fun findBySessionIdAndMessageId(sessionId: Long, messageId: Int): BotMessage?
     fun findByUserIdAndMessageId(userId: Long, messageId: Int): BotMessage?
-    fun findAllBySessionIdOrderByCreatedDateAsc(sessionId: Long): List<BotMessage>
-
     @Query("""
         SELECT NEW map(m.session as session, m as message)
         FROM bot_message m
@@ -112,11 +81,11 @@ interface SessionRepository : BaseRepository<Session> {
 
     @Query(
         """
-    SELECT s.operator, SUM(s.rate)
+    SELECT s.operatorId, SUM(s.rate)
     FROM Session s 
     WHERE s.rate IS NOT NULL 
       AND s.createdDate BETWEEN :fromDate AND :toDate
-    GROUP BY s.operator 
+    GROUP BY s.operatorId 
     ORDER BY SUM(s.rate) DESC
     """
     )
@@ -128,11 +97,11 @@ interface SessionRepository : BaseRepository<Session> {
 
     @Query(
         """
-    SELECT s.operator, SUM(s.rate)
+    SELECT s.operatorId, SUM(s.rate)
     FROM Session s 
     WHERE s.rate IS NOT NULL 
       AND s.createdDate BETWEEN :fromDate AND :toDate
-    GROUP BY s.operator 
+    GROUP BY s.operatorId 
     ORDER BY SUM(s.rate) ASC
     """
     )
@@ -144,9 +113,9 @@ interface SessionRepository : BaseRepository<Session> {
 
     @Query(
         """
-    SELECT s.operator, s.rate
+    SELECT s.operatorId, s.rate
     FROM Session s
-    WHERE s.operator.id = :operatorId
+    WHERE s.operatorId = :operatorId
       AND s.rate IS NOT NULL
     """
     )
@@ -159,7 +128,7 @@ interface SessionRepository : BaseRepository<Session> {
         """
     SELECT s
     FROM Session s
-    WHERE s.operator.id = :operatorId
+    WHERE s.operatorId = :operatorId
       AND s.createdDate BETWEEN :fromDate AND :toDate
     """
     )
@@ -188,10 +157,10 @@ interface SessionRepository : BaseRepository<Session> {
 
     @Query(
         """
-    SELECT s.operator,sum(s.rate)
+    SELECT s.operatorId,sum(s.rate)
     FROM Session s 
     WHERE s.rate IS NOT NULL 
-    GROUP BY s.operator 
+    GROUP BY s.operatorId 
     ORDER BY sum(s.rate) DESC
     """
     )
@@ -199,10 +168,10 @@ interface SessionRepository : BaseRepository<Session> {
 
     @Query(
         """
-    SELECT s.operator,sum(s.rate)
+    SELECT s.operatorId,sum(s.rate)
     FROM Session s 
     WHERE s.rate IS NOT NULL 
-    GROUP BY s.operator 
+    GROUP BY s.operatorId 
     ORDER BY sum(s.rate) ASC
     """
     )
@@ -217,10 +186,9 @@ interface SessionRepository : BaseRepository<Session> {
 
     @Query(
         "SELECT s FROM Session s " +
-                "WHERE s.operator.id = :operatorId " +
+                "WHERE s.operatorId = :operatorId " +
                 "ORDER BY s.createdDate DESC LIMIT 1"
     )
-    fun findLastSessionByOperatorId(@Param("operatorId") operatorId: Long): Session?
     fun findByOperatorIdAndStatus(operatorId: Long, status: SessionStatusEnum): Session?
     fun getSessionByUserId(userId: Long, pageable: Pageable): Page<Session>
     fun getSessionByOperatorId(operatorId: Long, pageable: Pageable): Page<Session>
@@ -233,12 +201,8 @@ interface ContactRepository : BaseRepository<Contact>
 
 interface BotRepository : BaseRepository<Bot> {
     fun findAllByStatus(status: BotStatusEnum): MutableList<Bot>
-    fun findAllDeletedFalse(): List<Bot>
     fun findAllBotsByStatusAndDeletedFalse(status: BotStatusEnum): List<Bot>
     fun findByIdAndDeletedFalse(id: Long): Bot?
 }
 
-interface DoubleOperatorRepository : BaseRepository<DoubleOperator> {
-    fun existsByOperatorIdAndSessionId(operatorId: Long, sessionId: Long): Boolean
-    fun findFirstBySessionIdOrderByCreatedDateDesc(sessionId: Long): DoubleOperator?
-}
+
