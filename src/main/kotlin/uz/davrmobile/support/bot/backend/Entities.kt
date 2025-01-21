@@ -49,6 +49,12 @@ class User(
     }
 }
 
+@Table
+    (
+    indexes = [
+        Index(columnList = "id, user_id, operator_id")
+    ]
+)
 @Entity
 class Session(
     @ManyToOne val user: User,
@@ -88,8 +94,15 @@ class Bot(
     @Column(nullable = false) val username: String,
     val name: String,
     @Enumerated(value = EnumType.STRING) var status: BotStatusEnum = BotStatusEnum.ACTIVE,
+    @ElementCollection var operatorIds: MutableSet<Long> = mutableSetOf()
 ) : BaseEntity()
 
+@Table
+    (
+    indexes = [
+        Index(columnList = "id, user_id, session_id")
+    ]
+)
 @Entity(name = "bot_message")
 class BotMessage(
     @ManyToOne val user: User,
