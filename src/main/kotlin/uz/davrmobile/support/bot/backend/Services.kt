@@ -74,7 +74,7 @@ class SessionServiceImpl(
     }
 
     override fun getAllSessionUser(userId: Long, pageable: Pageable): Page<SessionInfo> {
-        return toSessionInfo(sessionRepository.getSessionByBotUserId(userId, pageable))
+        return toSessionInfo(sessionRepository.getSessionByUserId(userId, pageable))
     }
 
 
