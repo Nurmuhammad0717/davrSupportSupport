@@ -115,7 +115,8 @@ class BotMessage(
     @OneToOne @JoinColumn(nullable = true) val file: FileInfo? =null,
     @OneToOne @JoinColumn(nullable = true) val location: Location? = null,
     @OneToOne @JoinColumn(nullable = true) val contact: Contact? = null,
-    @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null
+    @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null,
+    var hasRead: Boolean = false,
 ) : BaseEntity()
 
 

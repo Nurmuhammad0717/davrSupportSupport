@@ -66,6 +66,7 @@ interface UserRepository : JpaRepository<BotUser, Long> {
 interface BotMessageRepository : BaseRepository<BotMessage> {
 
     fun findAllBySessionIdAndDeletedFalse(sessionId: Long): List<BotMessage>
+    fun findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long): List<BotMessage>
 
     fun findByUserIdAndMessageId(userId: Long, messageId: Int): BotMessage?
     @Query("""
