@@ -3,6 +3,9 @@ package uz.davrmobile.support.bot.backend
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
+import org.springframework.web.multipart.MultipartFile
+import java.time.LocalDate
+import java.util.*
 import kotlin.math.round
 
 interface UserService {
@@ -24,6 +27,10 @@ interface SessionService {
     fun getHighRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo>
     fun getLowRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo>
     fun getOperatorRate(operatorId: Long, pageable: Pageable): Page<RateInfo>
+}
+
+interface FileInfoService{
+    fun upload(multipartFile: MultipartFile)
 }
 
 @Service
