@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import java.time.LocalDate
 import java.util.*
+import javax.transaction.Transactional
 import kotlin.math.round
 
 interface UserService {
@@ -170,11 +171,12 @@ class SessionServiceImpl(
 interface MessageToOperatorService{
 
     fun getSessions(): List<SessionResponse>
-
     fun getSessionMessages(sessionId: Long):SessionMessagesResponse
+    fun getUnreadMessages(sessionId: Long): SessionMessagesResponse
 
 }
 
+@Service
 class MessageToOperatorServiceImpl(
 
     private val userService: UserService,
@@ -185,7 +187,7 @@ class MessageToOperatorServiceImpl(
     override fun getSessions(): List<SessionResponse> {
         val waitingSessions = sessionRepository.findAllByStatusAndDeletedFalse(SessionStatusEnum.WAITING)
        return waitingSessions.map {
-           val count = botMessageRepository.findAllBySessionIdAndDeletedFalse(it.id!!).count()
+           val count = botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!).count()
            SessionResponse.toResponse(it,count)
         }
     }
@@ -193,6 +195,16 @@ class MessageToOperatorServiceImpl(
     override fun getSessionMessages(sessionId: Long): SessionMessagesResponse {
         val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(sessionId)
         return SessionMessagesResponse(sessionId,messages)
+    }
+
+    @Transactional
+    override fun getUnreadMessages(sessionId: Long): SessionMessagesResponse {
+        val unreadMessages =
+            botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId)
+        for (unreadMessage in unreadMessages) {
+            unreadMessage.hasRead = true
+        }
+        return SessionMessagesResponse(sessionId,unreadMessages)
     }
 }
 
