@@ -16,13 +16,13 @@ interface SessionService {
     fun getOne(id: Long): SessionInfo
     fun getAllSessionUser(userId: Long, pageable: Pageable): Page<SessionInfo>
     fun getAllSessionOperator(operatorId: Long, pageable: Pageable): Page<SessionInfo>
-    fun getAllSessionUserDateRange(userId: Long, dto: DateRangeDTO, pageable: Pageable): Page<SessionInfo>
-    fun getAllSessionOperatorDateRange(operatorId: Long, dto: DateRangeDTO, pageable: Pageable): Page<SessionInfo>
+    fun getAllSessionUserDateRange(userId: Long, dto: DateRangeRequest, pageable: Pageable): Page<SessionInfo>
+    fun getAllSessionOperatorDateRange(operatorId: Long, dto: DateRangeRequest, pageable: Pageable): Page<SessionInfo>
     fun getSessionsByStatus(status: SessionStatusEnum, pageable: Pageable): Page<SessionInfo>
     fun getHighRateOperator(pageable: Pageable): Page<RateInfo>
     fun getLowRateOperator(pageable: Pageable): Page<RateInfo>
-    fun getHighRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo>
-    fun getLowRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo>
+    fun getHighRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo>
+    fun getLowRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo>
     fun getOperatorRate(operatorId: Long, pageable: Pageable): Page<RateInfo>
 }
 
@@ -77,7 +77,7 @@ class SessionServiceImpl(
 
     override fun getAllSessionUserDateRange(
         userId: Long,
-        dto: DateRangeDTO,
+        dto: DateRangeRequest,
         pageable: Pageable
     ): Page<SessionInfo> {
         return toSessionInfo(
@@ -92,7 +92,7 @@ class SessionServiceImpl(
 
     override fun getAllSessionOperatorDateRange(
         operatorId: Long,
-        dto: DateRangeDTO,
+        dto: DateRangeRequest,
         pageable: Pageable
     ): Page<SessionInfo> {
         return toSessionInfo(
@@ -117,11 +117,11 @@ class SessionServiceImpl(
         return toRateInfo(sessionRepository.findLowestRatedOperators(pageable))
     }
 
-    override fun getHighRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo> {
+    override fun getHighRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo> {
         return toRateInfo(sessionRepository.findHighestRatedOperatorsByDateRange(dto.fromDate, dto.toDate, pageable))
     }
 
-    override fun getLowRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo> {
+    override fun getLowRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo> {
         return toRateInfo(sessionRepository.findLowestRatedOperatorsByDateRange(dto.fromDate, dto.toDate, pageable))
 
     }
@@ -158,5 +158,13 @@ class SessionServiceImpl(
             RateInfo(rate = roundedRate, operator = UserResponse.toResponse(operator))
         }
     }
+}
+
+interface MessageToOperatorService{
+
+    fun hasNews(): List<SessionResponse>
+
+    fun getSessionMessages(): List<SessionMessagesResponse>
+
 }
 

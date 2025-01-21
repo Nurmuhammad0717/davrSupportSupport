@@ -108,7 +108,6 @@ class BotMessage(
     @ManyToOne val botUser: BotUser,
     @ManyToOne val session: Session,
     @Column(nullable = false) val messageId: Int,
-    @Column(nullable = true) var botMessageId: Int? = null,
     @Column(nullable = true) val replyMessageId: Int? = null,
     @Column(nullable = true) var text: String? = null,
     @Column(nullable = true) var caption: String? = null,
