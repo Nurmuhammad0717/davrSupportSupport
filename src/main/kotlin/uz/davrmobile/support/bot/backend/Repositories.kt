@@ -64,6 +64,9 @@ interface UserRepository : JpaRepository<BotUser, Long> {
 }
 
 interface BotMessageRepository : BaseRepository<BotMessage> {
+
+    fun findAllBySessionIdAndDeletedFalse(sessionId: Long): List<BotMessage>
+
     fun findByUserIdAndMessageId(userId: Long, messageId: Int): BotMessage?
     @Query("""
         SELECT NEW map(m.session as session, m as message)
@@ -76,6 +79,8 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
 }
 
 interface SessionRepository : BaseRepository<Session> {
+
+    fun findAllByStatusAndDeletedFalse(status: SessionStatusEnum): List<Session>
 
     fun findByIdAndDeletedFalse(sessionId: Long): Session?
 

@@ -162,9 +162,30 @@ class SessionServiceImpl(
 
 interface MessageToOperatorService{
 
-    fun hasNews(): List<SessionResponse>
+    fun getSessions(): List<SessionResponse>
 
-    fun getSessionMessages(): List<SessionMessagesResponse>
+    fun getSessionMessages(sessionId: Long):SessionMessagesResponse
 
+}
+
+class MessageToOperatorServiceImpl(
+
+    private val userService: UserService,
+    private val sessionRepository: SessionRepository,
+    private val botMessageRepository: BotMessageRepository
+
+): MessageToOperatorService {
+    override fun getSessions(): List<SessionResponse> {
+        val waitingSessions = sessionRepository.findAllByStatusAndDeletedFalse(SessionStatusEnum.WAITING)
+       return waitingSessions.map {
+           val count = botMessageRepository.findAllBySessionIdAndDeletedFalse(it.id!!).count()
+           SessionResponse.toResponse(it,count)
+        }
+    }
+
+    override fun getSessionMessages(sessionId: Long): SessionMessagesResponse {
+        val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(sessionId)
+        return SessionMessagesResponse(sessionId,messages)
+    }
 }
 
