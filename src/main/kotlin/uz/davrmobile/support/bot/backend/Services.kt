@@ -133,7 +133,7 @@ class SessionServiceImpl(
     private fun toSessionInfo(sessions: Page<Session>): Page<SessionInfo> {
         return sessions.map { session ->
             SessionInfo(
-                user = UserResponse.toResponse(session.botUser),
+                user = UserResponse.toResponse(session.user),
                 status = session.status!!,
                 operatorId = session.operatorId,
                 rate = session.rate
@@ -143,7 +143,7 @@ class SessionServiceImpl(
 
     private fun toSessionInfo(session: Session): SessionInfo {
         return SessionInfo(
-            user = UserResponse.toResponse(session.botUser),
+            user = UserResponse.toResponse(session.user),
             status = session.status!!,
             operatorId = session.operatorId,
             rate = session.rate

@@ -76,7 +76,7 @@ data class SessionResponse(
     companion object {
         fun toResponse(session: Session, messageCount: Int): SessionResponse {
             session.run {
-                return SessionResponse(id!!,botUser,botId,status!!,messageCount)
+                return SessionResponse(id!!,user,botId,status!!,messageCount)
             }
         }
     }

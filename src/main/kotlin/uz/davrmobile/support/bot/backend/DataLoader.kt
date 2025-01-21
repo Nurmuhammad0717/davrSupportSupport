@@ -61,7 +61,7 @@ class DataLoader(
                 for (bot in activeBots) {
                     if (bot.value.botId == session.botId) {
                         val firstMessage = messages.firstOrNull() ?: return@forEach
-                        val language = firstMessage.botUser.languages.firstOrNull() ?: LanguageEnum.EN
+                        val language = firstMessage.user.languages.firstOrNull() ?: LanguageEnum.EN
 
                         val messagesList = CopyOnWriteArrayList(messages)
 
