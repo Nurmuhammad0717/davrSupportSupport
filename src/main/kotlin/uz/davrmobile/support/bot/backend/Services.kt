@@ -194,7 +194,7 @@ class MessageToOperatorServiceImpl(
 
     override fun getSessionMessages(sessionId: Long): SessionMessagesResponse {
         val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(sessionId)
-        return SessionMessagesResponse(sessionId,messages)
+        return SessionMessagesResponse(sessionId,messages.map { BotMessageResponse.toResponse(it) })
     }
 
     @Transactional
@@ -204,7 +204,8 @@ class MessageToOperatorServiceImpl(
         for (unreadMessage in unreadMessages) {
             unreadMessage.hasRead = true
         }
-        return SessionMessagesResponse(sessionId,unreadMessages)
+        botMessageRepository.saveAll(unreadMessages)
+        return SessionMessagesResponse(sessionId,unreadMessages.map { BotMessageResponse.toResponse(it) })
     }
 }
 
