@@ -100,8 +100,9 @@ open class SupportTelegramBot(
 //            }
         }
     }
+
     @Transactional
-    open fun handleUserMessage(update: Update, user: User) {
+    open fun handleUserMessage(update: Update, user: BotUser) {
         val chatId = user.id
         val message = update.message
 
@@ -172,7 +173,7 @@ open class SupportTelegramBot(
     }
 
     @Transactional
-    open fun checkAndHandleUserSession(user: User, update: Update) {
+    open fun checkAndHandleUserSession(user: BotUser, update: Update) {
         sessionRepository.findLastSessionByUserId(user.id)?.let { session ->
             if (session.isBusy() && session.botId != botId) {
                 findBotById(session.botId)?.let { bot ->
@@ -187,7 +188,7 @@ open class SupportTelegramBot(
         }
     }
 
-    private fun sendMainMenuMsg(user: User) {
+    private fun sendMainMenuMsg(user: BotUser) {
         val newText = """
             ${getMsg("MENU", user)}:
             
@@ -204,7 +205,7 @@ open class SupportTelegramBot(
         this.execute(sendMessage)
     }
 
-    private fun sendFullNameSavedMsg(user: User) {
+    private fun sendFullNameSavedMsg(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), getMsg("FULL_NAME_SAVED", user))
         val row1 = KeyboardRow(1)
         row1.add(KeyboardButton(getMsg("CONNECT_WITH_OPERATOR", user)))
@@ -214,12 +215,12 @@ open class SupportTelegramBot(
         this.execute(sendMessage)
     }
 
-    private fun sendActionTyping(user: User) {
+    private fun sendActionTyping(user: BotUser) {
         this.execute(SendChatAction(user.id.toString(), "typing", null))
     }
 
     @Transactional
-    open fun handleSessionMsgForUser(update: Update, user: User) {
+    open fun handleSessionMsgForUser(update: Update, user: BotUser) {
         getSession(user).let { session ->
             val savedMessage = newSessionMsg(update, session, user)
 
@@ -255,7 +256,7 @@ open class SupportTelegramBot(
         } else null
     }
 
-    private fun newSessionMsg(update: Update, session: Session, user: User): BotMessage {
+    private fun newSessionMsg(update: Update, session: Session, user: BotUser): BotMessage {
         val message = update.message
         val messageReplyId = if (message.isReply) message.replyToMessage.messageId else null
         val typeAndFileId = determineMessageType(message)
@@ -280,16 +281,16 @@ open class SupportTelegramBot(
         )
     }
 
-    private fun saveUserPhoneNumber(user: User, phoneNumber: String) {
+    private fun saveUserPhoneNumber(user: BotUser, phoneNumber: String) {
         user.phoneNumber = phoneNumber
         userRepository.save(user)
     }
 
-    private fun handleInvalidPhoneNumber(user: User) {
+    private fun handleInvalidPhoneNumber(user: BotUser) {
         sendWrongNumberMsg(user)
     }
 
-    private fun handleStartCommand(user: User) {
+    private fun handleStartCommand(user: BotUser) {
         if (user.languages.isEmpty()) {
             sendChooseLangMsg(user)
         } else {
@@ -297,7 +298,7 @@ open class SupportTelegramBot(
         }
     }
 
-    private fun updateUserFullName(user: User, text: String) {
+    private fun updateUserFullName(user: BotUser, text: String) {
         user.fullName = text
         user.state = UserStateEnum.ACTIVE_USER
         userRepository.save(user)
@@ -410,7 +411,7 @@ open class SupportTelegramBot(
     }
 
     @Synchronized
-    fun getUser(from: org.telegram.telegrambots.meta.api.objects.User): User {
+    fun getUser(from: org.telegram.telegrambots.meta.api.objects.User): BotUser {
         val userOpt = userRepository.findById(from.id)
         if (userOpt.isPresent) {
             return userOpt.get()
@@ -420,14 +421,14 @@ open class SupportTelegramBot(
         var lastName = from.lastName
         lastName = if (lastName == null) "" else " $lastName"
         return userRepository.save(
-            User(
+            BotUser(
                 from.id, username, from.firstName + lastName, "", botId
             )
         )
     }
 
     @Transactional
-    open fun getSession(user: User): Session {
+    open fun getSession(user: BotUser): Session {
         val session = sessionRepository.findLastSessionByUserId(user.id)
         return if (session != null) {
             if (session.isClosed()) {
@@ -480,7 +481,7 @@ open class SupportTelegramBot(
     }
 
     @Transactional
-    open fun handleCommonCommands(text: String, user: User): Boolean {
+    open fun handleCommonCommands(text: String, user: BotUser): Boolean {
         return when (text.lowercase()) {
             "/setlang" -> {
                 sendChooseLangMsg(user)
@@ -497,7 +498,7 @@ open class SupportTelegramBot(
     }
 
     @Transactional
-    open fun stopChat(operator: User) {
+    open fun stopChat(operator: BotUser) {
         val session = sessionRepository.findByOperatorIdAndStatus(operator.id, SessionStatusEnum.BUSY)
         session?.let {
             val user = it.user
@@ -515,7 +516,7 @@ open class SupportTelegramBot(
         }
     }
 
-    open fun sendAskYourQuestionMsg(user: User) {
+    open fun sendAskYourQuestionMsg(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), getMsg("ASK_YOUR_QUESTION", user).htmlBold())
         sendMessage.replyMarkup = ReplyKeyboardRemove(true)
         sendMessage.parseMode = ParseMode.HTML
@@ -524,11 +525,11 @@ open class SupportTelegramBot(
         this.execute(sendMessage)
     }
 
-    open fun sendWrongNumberMsg(user: User) {
+    open fun sendWrongNumberMsg(user: BotUser) {
         this.execute(SendMessage(user.id.toString(), getMsg("WRONG_NUMBER", user)))
     }
 
-    open fun sendRateMsg(user: User, operator: User, session: Session) {
+    open fun sendRateMsg(user: BotUser, operator: BotUser, session: Session) {
         val sendMessage = SendMessage(
             user.id.toString(),
             getMsg("OPERATOR_STOPPED_CHAT", operator) + "\n" + getMsg("PLEASE_RATE_OPERATOR_WORK", operator)
@@ -548,14 +549,14 @@ open class SupportTelegramBot(
         this.execute(sendMessage)
     }
 
-    open fun sendChatStoppedMsg(user: User) {
+    open fun sendChatStoppedMsg(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), getMsg("CHAT_STOPPED", user).htmlBold())
         sendMessage.parseMode = ParseMode.HTML
         sendMessage.replyMarkup = ReplyKeyboardRemove(true)
         this.execute(sendMessage)
     }
 
-    open fun getMsg(key: String, user: User): String {
+    open fun getMsg(key: String, user: BotUser): String {
         try {
             val locale = Locale.forLanguageTag(user.languages.elementAt(0).name.lowercase())
             return messageSource.getMessage(key, null, locale)
@@ -573,7 +574,7 @@ open class SupportTelegramBot(
         }
     }
 
-    open fun getMsgKeyByValue(value: String, user: User): String {
+    open fun getMsgKeyByValue(value: String, user: BotUser): String {
         for (language in user.languages) {
             val locale = Locale.forLanguageTag(language.name.lowercase())
             val bundle = ResourceBundle.getBundle("messages", locale)
@@ -582,7 +583,7 @@ open class SupportTelegramBot(
         return ""
     }
 
-    open fun sendChooseLangMsg(user: User) {
+    open fun sendChooseLangMsg(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), "Choose language")
         val btn1 = InlineKeyboardButton("🇺🇸 O'zbek")
         btn1.callbackData = "setLangEN"
@@ -598,7 +599,7 @@ open class SupportTelegramBot(
         userRepository.save(user)
     }
 
-    open fun sendSharePhoneMsg(user: User) {
+    open fun sendSharePhoneMsg(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), getMsg("CLICK_TO_SEND_YOUR_PHONE", user))
         val keyboardButton = KeyboardButton(getMsg("SHARE_PHONE_NUMBER", user))
         keyboardButton.requestContact = true
@@ -612,7 +613,7 @@ open class SupportTelegramBot(
         userRepository.save(user)
     }
 
-    open fun sendEnterYourFullName(user: User) {
+    open fun sendEnterYourFullName(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), getMsg("SEND_YOUR_FULL_NAME", user))
         sendMessage.replyMarkup = ReplyKeyboardRemove(true)
         this.execute(sendMessage)

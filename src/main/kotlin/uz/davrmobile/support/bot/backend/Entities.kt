@@ -57,7 +57,7 @@ class BotUser(
 )
 @Entity
 class Session(
-    @ManyToOne val botUser: BotUser,
+    @ManyToOne val user: BotUser,
     val botId: Long,
     @Enumerated(EnumType.STRING) var status: SessionStatusEnum? = SessionStatusEnum.WAITING,
     var operatorId: Long? = null,
@@ -105,7 +105,7 @@ class Bot(
 )
 @Entity(name = "bot_message")
 class BotMessage(
-    @ManyToOne val botUser: BotUser,
+    @ManyToOne val user: BotUser,
     @ManyToOne val session: Session,
     @Column(nullable = false) val messageId: Int,
     @Column(nullable = true) var botMessageId: Int? = null,
