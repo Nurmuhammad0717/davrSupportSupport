@@ -20,8 +20,8 @@ data class UserResponse(
     val role: UserRole?
 ) {
     companion object {
-        fun toResponse(user: User): UserResponse {
-            user.run {
+        fun toResponse(botUser: BotUser): UserResponse {
+            botUser.run {
                 return UserResponse(id, username, fullName, phoneNumber, languages, role)
             }
         }

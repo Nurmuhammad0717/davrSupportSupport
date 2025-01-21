@@ -52,10 +52,6 @@ class SessionController(private val sessionService: SessionService) {
         return sessionService.getAllSessionOperator(operatorId, pageable)
     }
 
-//    @GetMapping("/operator/average")
-//    fun getAllSessionOperator(pageable: Pageable): Page<RateInfo> {
-//        return sessionService.getOperatorsAverageRates(pageable)
-//    }
 
     @PostMapping("user/{userId}")
     fun getAllSessionUserDateRange(
