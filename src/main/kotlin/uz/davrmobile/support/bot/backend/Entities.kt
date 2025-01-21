@@ -125,3 +125,12 @@ class Contact(
     @Column(nullable = false) val name: String,
     @Column(nullable = false) val phoneNumber: String,
 ) : BaseEntity()
+
+@Entity
+class FileInfo(
+    @Column(nullable = false) var name: String,
+    @Column(nullable = false) val extension: String,
+    @Column(nullable = false) val path: String,
+    @Column(nullable = false) val size: Long,
+    @Column(nullable = false, unique = true) val hashId: String
+): BaseEntity()

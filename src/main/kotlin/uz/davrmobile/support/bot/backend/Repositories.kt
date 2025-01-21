@@ -205,4 +205,6 @@ interface BotRepository : BaseRepository<Bot> {
     fun findByIdAndDeletedFalse(id: Long): Bot?
 }
 
+interface FileInfoRepository : BaseRepository<FileInfo>
+
 

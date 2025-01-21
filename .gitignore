@@ -16,6 +16,7 @@ build/
 bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+!**/file/**
 
 ### IntelliJ IDEA ###
 .idea
@@ -35,3 +36,4 @@ out/
 
 ### VS Code ###
 .vscode/
+
