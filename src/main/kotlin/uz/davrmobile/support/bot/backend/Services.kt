@@ -4,11 +4,16 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+import java.time.LocalDate
+import java.util.*
 import org.telegram.telegrambots.meta.api.methods.send.SendContact
 import org.telegram.telegrambots.meta.api.methods.send.SendLocation
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
-import org.telegram.telegrambots.meta.api.methods.send.SendSticker
 import org.telegram.telegrambots.meta.api.objects.media.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
 import java.io.File
@@ -172,6 +177,7 @@ interface MessageToOperatorService {
 
 @Service
 class MessageToOperatorServiceImpl(
+    private val userService: UserService,
     private val sessionRepository: SessionRepository,
     private val botMessageRepository: BotMessageRepository,
     private val botRepository: BotRepository,
@@ -226,15 +232,10 @@ class MessageToOperatorServiceImpl(
                         BotMessageType.TEXT -> {
                             message.text?.let {
                                 absSender.execute(SendMessage(userId, it))
-                            }?:throw BadCredentialsException()
+                            } ?: throw BadCredentialsException()
                         }
 
-                        BotMessageType.VIDEO,
-                        BotMessageType.PHOTO,
-                        BotMessageType.VOICE,
-                        BotMessageType.AUDIO,
-                        BotMessageType.DOCUMENT,
-                        BotMessageType.ANIMATION -> {
+                        BotMessageType.VIDEO, BotMessageType.PHOTO, BotMessageType.VOICE, BotMessageType.AUDIO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION -> {
                             message.fileId?.let { fileHashIds ->
                                 val inputMediaList: MutableList<InputMedia> = mutableListOf()
                                 for (fileHashId in fileHashIds) {
@@ -242,19 +243,19 @@ class MessageToOperatorServiceImpl(
                                     inputMediaList.add(getInputMediaByFileInfo(fileInfo))
                                 }
                                 absSender.execute(SendMediaGroup(userId, inputMediaList))
-                            }?:throw BadCredentialsException()
+                            } ?: throw BadCredentialsException()
                         }
 
                         BotMessageType.LOCATION -> {
                             message.location?.let {
                                 absSender.execute(SendLocation(userId, it.latitude, it.longitude))
-                            }?:throw BadCredentialsException()
+                            } ?: throw BadCredentialsException()
                         }
 
                         BotMessageType.CONTACT -> {
                             message.contact?.let {
                                 absSender.execute(SendContact(userId, it.phoneNumber, it.name))
-                            }?:throw BadCredentialsException()
+                            } ?: throw BadCredentialsException()
                         }
 
                         BotMessageType.POLL -> {}
@@ -279,6 +280,46 @@ class MessageToOperatorServiceImpl(
         }
         inputMedia.setMedia(filePath, fileName)
         return inputMedia
+    }
+}
+
+@Service
+class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : FileInfoService {
+
+    val path: String = "file/${LocalDate.now()}"
+
+    override fun upload(multipartFile: MultipartFile) {
+        val name = UUID.randomUUID().toString()
+        val fileInfo = FileInfo(
+            name = multipartFile.name,
+            extension = extractExtension(multipartFile.originalFilename!!),
+            path = getFilePath(name, multipartFile).toString(),
+            size = multipartFile.size,
+            hashId = name
+        )
+        fileInfoRepository.save(fileInfo)
+
+        val filePath = Paths.get(fileInfo.path)
+        filePath.parent?.let { directoryPath ->
+            if (!Files.exists(directoryPath)) {
+                Files.createDirectories(directoryPath)
+            }
+        }
+        multipartFile.inputStream.use { inputStream ->
+            Files.copy(inputStream, filePath, StandardCopyOption.REPLACE_EXISTING)
+        }
+    }
+
+    private fun extractExtension(name: String): String {
+        name.let {
+            val dotIndex = name.lastIndexOf('.')
+            if (dotIndex >= 0) return it.substring(dotIndex + 1)
+        }
+        return ""
+    }
+
+    private fun getFilePath(name: String, multipartFile: MultipartFile): Path {
+        return Paths.get(path, "${name}.${extractExtension(multipartFile.originalFilename!!)}")
     }
 }
 
