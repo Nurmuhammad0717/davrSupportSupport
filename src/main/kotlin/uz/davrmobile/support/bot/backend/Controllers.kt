@@ -183,5 +183,5 @@ class FileInfoController(
     private val fileInfoService: FileInfoService
 ){
     @PostMapping("upload")
-    fun upload(@RequestParam("file") multipartFile: MultipartFile) = fileInfoService.upload(multipartFile)
+    fun upload(@RequestParam("file") multipartFile: MutableList<MultipartFile>) = fileInfoService.upload(multipartFile)
 }
