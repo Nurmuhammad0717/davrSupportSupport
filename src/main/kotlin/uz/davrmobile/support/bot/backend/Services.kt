@@ -4,9 +4,12 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
+import uz.davrmobile.support.util.getUserId
 import java.time.LocalDate
 import java.util.*
 import javax.transaction.Transactional
+import javax.ws.rs.NotAuthorizedException
+import kotlin.io.AccessDeniedException
 import kotlin.math.round
 
 interface UserService {
@@ -174,7 +177,6 @@ interface MessageToOperatorService {
     fun getSessionMessages(sessionId: Long): SessionMessagesResponse
     fun getUnreadMessages(sessionId: Long): SessionMessagesResponse
     fun sendMessage()
-
 }
 
 @Service
@@ -182,7 +184,7 @@ class MessageToOperatorServiceImpl(
 
     private val userService: UserService,
     private val sessionRepository: SessionRepository,
-    private val botMessageRepository: BotMessageRepository
+    private val botMessageRepository: BotMessageRepository, private val botRepository: BotRepository
 
 ) : MessageToOperatorService {
     override fun getSessions(): List<SessionResponse> {
@@ -226,5 +228,8 @@ class MessageToOperatorServiceImpl(
     override fun sendMessage() {
         TODO("Not yet implemented")
     }
+
+
+
 }
 
