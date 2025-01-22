@@ -584,7 +584,7 @@ open class SupportTelegramBot(
     open fun getMsgKeyByValue(value: String, user: BotUser): String {
         for (language in user.languages) {
             val locale = Locale.forLanguageTag(language.name.lowercase())
-            val bundle = ResourceBundle.getBundle("messages", locale)
+            val bundle = ResourceBundle.getBundle("bot_messages", locale)
             for (key in bundle.keySet()) if (bundle.getString(key) == value) return key
         }
         return ""
