@@ -30,7 +30,7 @@ interface SessionService {
     fun getOperatorRate(operatorId: Long, pageable: Pageable): Page<RateInfo>
 }
 
-interface FileInfoService{
+interface FileInfoService {
     fun upload(multipartFile: MultipartFile)
 }
 
@@ -168,11 +168,12 @@ class SessionServiceImpl(
     }
 }
 
-interface MessageToOperatorService{
+interface MessageToOperatorService {
 
     fun getSessions(): List<SessionResponse>
-    fun getSessionMessages(sessionId: Long):SessionMessagesResponse
+    fun getSessionMessages(sessionId: Long): SessionMessagesResponse
     fun getUnreadMessages(sessionId: Long): SessionMessagesResponse
+    fun sendMessage()
 
 }
 
@@ -183,29 +184,47 @@ class MessageToOperatorServiceImpl(
     private val sessionRepository: SessionRepository,
     private val botMessageRepository: BotMessageRepository
 
-): MessageToOperatorService {
+) : MessageToOperatorService {
     override fun getSessions(): List<SessionResponse> {
         val waitingSessions = sessionRepository.findAllByStatusAndDeletedFalse(SessionStatusEnum.WAITING)
-       return waitingSessions.map {
-           val count = botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!).count()
-           SessionResponse.toResponse(it,count)
+        return waitingSessions.map {
+            val count = botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!).count()
+            SessionResponse.toResponse(it, count)
         }
     }
 
     override fun getSessionMessages(sessionId: Long): SessionMessagesResponse {
-        val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(sessionId)
-        return SessionMessagesResponse(sessionId,messages.map { BotMessageResponse.toResponse(it) })
+        val sessionOpt = sessionRepository.findById(sessionId)
+        if (sessionOpt.isPresent) {
+            val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(sessionId)
+            return SessionMessagesResponse(
+                sessionId,
+                UserResponse.toResponse(sessionOpt.get().user),
+                messages.map { BotMessageResponse.toResponse(it) })
+        }
+        throw SessionNotFoundExistException()
     }
 
     @Transactional
     override fun getUnreadMessages(sessionId: Long): SessionMessagesResponse {
-        val unreadMessages =
-            botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId)
-        for (unreadMessage in unreadMessages) {
-            unreadMessage.hasRead = true
+        val sessionOptional = sessionRepository.findById(sessionId)
+        if (sessionOptional.isPresent) {
+            val unreadMessages =
+                botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId)
+            for (unreadMessage in unreadMessages) {
+                unreadMessage.hasRead = true
+            }
+            botMessageRepository.saveAll(unreadMessages)
+            return SessionMessagesResponse(
+                sessionId,
+                UserResponse.toResponse(sessionOptional.get().user),
+                unreadMessages.map { BotMessageResponse.toResponse(it) })
         }
-        botMessageRepository.saveAll(unreadMessages)
-        return SessionMessagesResponse(sessionId,unreadMessages.map { BotMessageResponse.toResponse(it) })
+        throw SessionNotFoundExistException()
+    }
+
+    override fun sendMessage() {
+        TODO("Not yet implemented")
     }
 }
 

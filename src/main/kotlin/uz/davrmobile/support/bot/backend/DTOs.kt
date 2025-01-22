@@ -86,13 +86,13 @@ data class SessionResponse(
 
 data class SessionMessagesResponse(
     val sessionId: Long,
+    val from: UserResponse,
     val messages: List<BotMessageResponse>
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class BotMessageResponse(
     val id: Long,
-    val from: UserResponse,
     val sessionId: Long,
     val messageId: Int,
     val type: BotMessageType,
@@ -107,8 +107,8 @@ data class BotMessageResponse(
     companion object {
         fun toResponse(botMessage: BotMessage): BotMessageResponse {
             botMessage.run {
-                return BotMessageResponse(id!!,
-                    UserResponse.toResponse(user),
+                return BotMessageResponse(
+                    id!!,
                     session.id!!, messageId, botMessageType,
                     replyMessageId, text, caption,
                     file?.hashId,

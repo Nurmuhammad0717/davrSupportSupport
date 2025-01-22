@@ -32,7 +32,7 @@ class AccessDeniedException : DBusinessException() {
     override fun errorCode() = ErrorCode.ACCESS_DENIED
 }
 
-class UsernameAlreadyExists() : DBusinessException() {
+class UsernameAlreadyExists : DBusinessException() {
     override fun errorCode() = ErrorCode.USERNAME_ALREADY_EXISTS
 }
 

@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param
 import uz.davrmobile.support.repository.BaseRepository
 import java.util.*
 
-interface DiceRepository : BaseRepository<Dice> {}
+interface DiceRepository : BaseRepository<Dice>
 
 interface UserRepository : JpaRepository<BotUser, Long> {
     fun findAllByDeletedFalse(): List<BotUser>

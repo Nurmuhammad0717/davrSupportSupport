@@ -16,7 +16,7 @@ class WebSocketConfig : WebSocketMessageBrokerConfigurer {
             .withSockJS()
             .setSupressCors(true)
             .setClientLibraryUrl("https://cdn.jsdelivr.net/sockjs/1.1.4/sockjs.min.js")
-            .setWebSocketEnabled(true);
+            .setWebSocketEnabled(true)
     }
 
     override fun configureMessageBroker(config: MessageBrokerRegistry) {

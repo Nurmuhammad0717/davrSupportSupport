@@ -9,9 +9,8 @@ import uz.davrmobile.support.repository.BaseRepositoryImpl
 @SpringBootApplication
 @EnableFeignClients
 @EnableJpaRepositories(repositoryBaseClass = BaseRepositoryImpl::class)
-class SupportApplication
-
 @Suppress("SpreadOperator")
+class SupportApplication
 fun main(args: Array<String>) {
     runApplication<SupportApplication>(*args)
 }

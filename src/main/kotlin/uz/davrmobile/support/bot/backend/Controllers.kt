@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.web.bind.annotation.*
 import uz.davrmobile.support.bot.bot.BotService
+import uz.davrmobile.support.usecase.SendMessageUseCase
 import uz.davrmobile.support.util.IsModerator
 import uz.davrmobile.support.util.IsUser
 
@@ -155,9 +156,9 @@ class PrivateUserController(
 @RestController
 @RequestMapping("operator")
 class OperatorController(
-    private val messageToOperatorService: MessageToOperatorService
+    private val messageToOperatorService: MessageToOperatorService,
+    private val sendMessage: SendMessageUseCase
 ) {
-
     @IsModerator
     @GetMapping("get-sessions")
     fun getSessions() = messageToOperatorService.getSessions()
@@ -169,5 +170,9 @@ class OperatorController(
     @IsUser
     @GetMapping("getUnreadMessages/{id}")
     fun getUnreadMessages(@PathVariable id: Long) = messageToOperatorService.getUnreadMessages(id)
+
+    @IsModerator
+    @PostMapping("/send-msg")
+    fun sendMessage() = messageToOperatorService.sendMessage()
 }
 

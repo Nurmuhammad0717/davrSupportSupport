@@ -1,4 +1,4 @@
-package uz.likwer.zeroonetask4supportbot.bot.component
+package uz.davrmobile.support.bot.component
 
 import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationContextAware
