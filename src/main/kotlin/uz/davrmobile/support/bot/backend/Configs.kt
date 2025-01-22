@@ -19,22 +19,3 @@ class Configs{
         return messageSource
     }
 }
-
-@Configuration
-class WebMvcConfig : WebMvcConfigurer {
-    @Bean
-    fun localeResolver() = SessionLocaleResolver().apply { setDefaultLocale(Locale("en")) }
-
-    @Bean
-    fun errorMessageSource() = ResourceBundleMessageSource().apply {
-        setDefaultEncoding(Charsets.UTF_8.name())
-        setBasename("error")
-    }
-
-
-    @Bean
-    fun messageSource() = ResourceBundleMessageSource().apply {
-        setDefaultEncoding(Charsets.UTF_8.name())
-        setBasename("message")
-    }
-}
