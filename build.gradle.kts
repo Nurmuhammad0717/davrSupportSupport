@@ -39,7 +39,6 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-starter-openfeign")
     implementation("io.github.microutils:kotlin-logging-jvm:2.1.23")
     implementation("org.springframework.boot:spring-boot-starter-websocket")
-    implementation("io.springfox:springfox-boot-starter:3.0.0")
     implementation("org.springframework.boot:spring-boot-starter-validation")
 //    implementation("org.flywaydb:flyway-core")
     runtimeOnly("org.postgresql:postgresql")

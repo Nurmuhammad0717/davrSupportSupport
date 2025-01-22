@@ -3,12 +3,11 @@ package uz.davrmobile.support.bot.backend
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
+import org.springframework.web.multipart.MultipartFile
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
-import java.util.*
-import org.springframework.web.multipart.MultipartFile
 import java.time.LocalDate
 import java.util.*
 import javax.transaction.Transactional
@@ -250,6 +249,6 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
         return ""
     }
     private fun getFilePath(name: String, multipartFile: MultipartFile): Path {
-        return Path.of(path, "${name}.${extractExtension(multipartFile.originalFilename!!)}")
+        return Paths.get(path, "${name}.${extractExtension(multipartFile.originalFilename!!)}")
     }
 }
