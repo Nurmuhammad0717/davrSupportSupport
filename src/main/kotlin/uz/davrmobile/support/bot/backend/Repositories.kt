@@ -19,6 +19,7 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
 
     fun findAllBySessionIdAndDeletedFalse(sessionId: Long): List<BotMessage>
     fun findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long): List<BotMessage>
+    fun countAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long): Int
 
     fun findByUserIdAndMessageId(userId: Long, messageId: Int): BotMessage?
 
@@ -31,7 +32,8 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
     """
     )
     fun findMessagesGroupedBySessionId(): List<Map<Any, Any>>
-
+    fun findAllByHashIdAndDeletedFalse(hashId:String): List<BotMessage>
+    abstract fun findAllByHashIdAndHasReadFalseAndDeletedFalse(hashId: String): List<BotMessage>
 }
 
 interface SessionRepository : BaseRepository<Session> {
@@ -148,7 +150,7 @@ interface SessionRepository : BaseRepository<Session> {
 
 
     @Query(
-      name =   "SELECT s FROM session s " +
+        name = "SELECT s FROM session s " +
                 "WHERE s.operatorId = :operatorId " +
                 "ORDER BY s.createdDate DESC LIMIT 1", nativeQuery = true
     )
@@ -156,6 +158,7 @@ interface SessionRepository : BaseRepository<Session> {
     fun getSessionByUserId(userId: Long, pageable: Pageable): Page<Session>
     fun getSessionByOperatorId(operatorId: Long, pageable: Pageable): Page<Session>
     fun getSessionByStatus(status: SessionStatusEnum, pageable: Pageable): Page<Session>
+    fun findByHashId(hashId: String): Session?
 
 }
 
@@ -163,12 +166,17 @@ interface LocationRepository : BaseRepository<Location>
 
 interface ContactRepository : BaseRepository<Contact>
 
-interface BotRepository : BaseRepository<Bot>{
+interface BotRepository : BaseRepository<Bot> {
     fun findAllByStatus(status: BotStatusEnum): List<Bot>
     fun findAllBotsByStatusAndDeletedFalse(status: BotStatusEnum): List<Bot>
+    fun findByHashId(hashId: String): Bot?
+    fun deleteByHashId(id: String)
+    fun findByHashIdAndDeletedFalse(id: String): Bot?
 }
 
-interface FileInfoRepository : BaseRepository<FileInfo>
+interface FileInfoRepository : BaseRepository<FileInfo> {
+    fun findByHashId(hashId: String): FileInfo?
+}
 
 
 

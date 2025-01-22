@@ -52,7 +52,7 @@ class SomethingWentWrongException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.SOMETHING_WENT_WRONG
 }
 
-class SessionNotFoundExistException : DBusinessException() {
+class SessionNotFoundException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.SESSION_NOT_FOUND
 }
 

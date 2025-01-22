@@ -10,6 +10,7 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
 import uz.davrmobile.support.bot.backend.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot.Companion.activeBots
 import uz.davrmobile.support.bot.bot.SupportTelegramBot.Companion.findBotById
+import uz.davrmobile.support.util.getUserId
 
 
 @Service
@@ -53,14 +54,13 @@ class BotService(
         telegramBot.registerBot(bot)
     }
 
-    private fun stopBot(botId: Long) {
-        findBotById(botId)?.let { tgBot ->
-            val botOpt = botRepository.findById(tgBot.botId)
-            if (botOpt.isPresent) {
-                val bot = botOpt.get()
+    fun stopBot(id: String) {
+        botRepository.findByHashId(id)?.let { bot ->
+            findBotById(bot.id!!)?.let { tgBot ->
                 bot.status = BotStatusEnum.STOPPED
                 botRepository.save(bot)
                 activeBots.remove(tgBot.token)
+
                 return
             }
         }
@@ -97,15 +97,35 @@ class BotService(
         }
     }
 
-    fun getOneBot(botId: Long): BotResponse? {
-        return botRepository.findByIdAndDeletedFalse(botId)?.let {
+    fun getOneBot(id: String): BotResponse? {
+        return botRepository.findByHashIdAndDeletedFalse(id)?.let {
             BotResponse.torResponse(it)
         } ?: throw BotNotFoundException()
     }
 
-    fun deleteBot(botId: Long) {
-        stopBot(botId)
-        botRepository.deleteById(botId)
+    fun deleteBot(id: String) {
+        stopBot(id)
+        botRepository.deleteByHashId(id)
     }
 
+    fun addBotToOperator(id: String) {
+        botRepository.findByHashId(id)?.let { bot ->
+            bot.operatorIds.add(getUserId())
+            botRepository.save(bot)
+        }?:run{
+            throw BotNotFoundException()
+        }
+    }
+
+    fun removeBotFromOperator(id: String) {
+        botRepository.findByHashId(id)?.let { bot ->
+            val operatorId = getUserId()
+            if (bot.operatorIds.contains(operatorId)) {
+                bot.operatorIds.remove(operatorId)
+                botRepository.save(bot)
+            }
+        }?:run{
+            throw BotNotFoundException()
+        }
+    }
 }
