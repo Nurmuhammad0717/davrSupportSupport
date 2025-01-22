@@ -224,8 +224,9 @@ class MessageToOperatorServiceImpl(
                 SupportTelegramBot.findBotById(bot.id!!)?.let { absSender ->
                     when (message.type) {
                         BotMessageType.TEXT -> {
-                            val text = message.text!!
-                            absSender.execute(SendMessage(userId, text))
+                            message.text?.let {
+                                absSender.execute(SendMessage(userId, it))
+                            }?:throw BadCredentialsException()
                         }
 
                         BotMessageType.VIDEO,
@@ -241,19 +242,19 @@ class MessageToOperatorServiceImpl(
                                     inputMediaList.add(getInputMediaByFileInfo(fileInfo))
                                 }
                                 absSender.execute(SendMediaGroup(userId, inputMediaList))
-                            }
+                            }?:throw BadCredentialsException()
                         }
 
                         BotMessageType.LOCATION -> {
                             message.location?.let {
                                 absSender.execute(SendLocation(userId, it.latitude, it.longitude))
-                            }
+                            }?:throw BadCredentialsException()
                         }
 
                         BotMessageType.CONTACT -> {
                             message.contact?.let {
                                 absSender.execute(SendContact(userId, it.phoneNumber, it.name))
-                            }
+                            }?:throw BadCredentialsException()
                         }
 
                         BotMessageType.POLL -> {}
