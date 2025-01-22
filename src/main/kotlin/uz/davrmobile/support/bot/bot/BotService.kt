@@ -22,6 +22,7 @@ class BotService(
     private val sessionRepository: SessionRepository,
     private val messageSource: MessageSource,
     private val botRepository: BotRepository,
+    private val fileInfoRepository: FileInfoRepository,
 ) {
 
     fun createBot(req: TokenRequest) {
@@ -36,6 +37,7 @@ class BotService(
             diceRepository,
             sessionRepository,
             messageSource,
+            fileInfoRepository
         )
         val me = supportTelegramBot.meAsync.get()
         val savedBot = botRepository.save(Bot(req.token, me.userName, me.firstName))

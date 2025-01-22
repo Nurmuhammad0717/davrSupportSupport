@@ -6,16 +6,17 @@ import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
 import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
+import uz.davrmobile.support.entity.BaseEntity
 import java.util.*
 
-@MappedSuperclass
-@EntityListeners(AuditingEntityListener::class)
-class BaseEntity(
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
-    @CreatedDate @Temporal(TemporalType.TIMESTAMP) var createdDate: Date? = null,
-    @LastModifiedDate @Temporal(TemporalType.TIMESTAMP) var modifiedDate: Date? = null,
-    @Column(nullable = false) @ColumnDefault(value = "false") var deleted: Boolean = false
-)
+//@MappedSuperclass
+//@EntityListeners(AuditingEntityListener::class)
+//class BaseEntity(
+//    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+//    @CreatedDate @Temporal(TemporalType.TIMESTAMP) var createdDate: Date? = null,
+//    @LastModifiedDate @Temporal(TemporalType.TIMESTAMP) var modifiedDate: Date? = null,
+//    @Column(nullable = false) @ColumnDefault(value = "false") var deleted: Boolean = false
+//)
 
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener::class)
@@ -51,16 +52,17 @@ class BotUser(
 }
 
 @Table(
+    name = "session",
     indexes = [
-        Index(columnList = "id, bot_user_id, operator_id")
+        Index(columnList = "bot_user_id, operator_id")
     ]
 )
 @Entity
 class Session(
-    @ManyToOne val user: BotUser,
+    @ManyToOne @JoinColumn(name = "bot_user_id") val user: BotUser,
     val botId: Long,
     @Enumerated(EnumType.STRING) var status: SessionStatusEnum? = SessionStatusEnum.WAITING,
-    var operatorId: Long? = null,
+    @Column(name = "operator_id")var operatorId: Long? = null,
     var rate: Short? = null,
 ) : BaseEntity() {
     fun hasOperator(): Boolean {
@@ -98,14 +100,15 @@ class Bot(
 ) : BaseEntity()
 
 @Table(
+    name = "bot_message",
     indexes = [
-        Index(columnList = "id, bot_user_id, session_id")
+        Index(columnList = "bot_user_id, session_id")
     ]
 )
 @Entity(name = "bot_message")
 class BotMessage(
-    @ManyToOne val user: BotUser,
-    @ManyToOne val session: Session,
+    @ManyToOne @JoinColumn(name = "bot_user_id") val user: BotUser,
+    @ManyToOne @JoinColumn(name = "session_id") val session: Session,
     @Column(nullable = false) val messageId: Int,
     @Column(nullable = true) val replyMessageId: Int? = null,
     @Column(nullable = true) var text: String? = null,
