@@ -2,13 +2,11 @@ package uz.davrmobile.support.bot.backend
 
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
-import org.springframework.security.authentication.AuthenticationProvider
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
-import org.springframework.security.core.userdetails.UserDetails
-import org.springframework.security.core.userdetails.UserDetailsService
-import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
-import uz.likwer.zeroonetask4supportbot.bot.backend.*
+import org.springframework.web.multipart.MultipartFile
+import java.time.LocalDate
+import java.util.*
+import javax.transaction.Transactional
 import kotlin.math.round
 
 interface UserService {
@@ -22,14 +20,18 @@ interface SessionService {
     fun getOne(id: Long): SessionInfo
     fun getAllSessionUser(userId: Long, pageable: Pageable): Page<SessionInfo>
     fun getAllSessionOperator(operatorId: Long, pageable: Pageable): Page<SessionInfo>
-    fun getAllSessionUserDateRange(userId: Long, dto: DateRangeDTO, pageable: Pageable): Page<SessionInfo>
-    fun getAllSessionOperatorDateRange(operatorId: Long, dto: DateRangeDTO, pageable: Pageable): Page<SessionInfo>
+    fun getAllSessionUserDateRange(userId: Long, dto: DateRangeRequest, pageable: Pageable): Page<SessionInfo>
+    fun getAllSessionOperatorDateRange(operatorId: Long, dto: DateRangeRequest, pageable: Pageable): Page<SessionInfo>
     fun getSessionsByStatus(status: SessionStatusEnum, pageable: Pageable): Page<SessionInfo>
     fun getHighRateOperator(pageable: Pageable): Page<RateInfo>
     fun getLowRateOperator(pageable: Pageable): Page<RateInfo>
-    fun getHighRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo>
-    fun getLowRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo>
+    fun getHighRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo>
+    fun getLowRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo>
     fun getOperatorRate(operatorId: Long, pageable: Pageable): Page<RateInfo>
+}
+
+interface FileInfoService {
+    fun upload(multipartFile: MultipartFile)
 }
 
 @Service
@@ -83,7 +85,7 @@ class SessionServiceImpl(
 
     override fun getAllSessionUserDateRange(
         userId: Long,
-        dto: DateRangeDTO,
+        dto: DateRangeRequest,
         pageable: Pageable
     ): Page<SessionInfo> {
         return toSessionInfo(
@@ -98,7 +100,7 @@ class SessionServiceImpl(
 
     override fun getAllSessionOperatorDateRange(
         operatorId: Long,
-        dto: DateRangeDTO,
+        dto: DateRangeRequest,
         pageable: Pageable
     ): Page<SessionInfo> {
         return toSessionInfo(
@@ -123,11 +125,11 @@ class SessionServiceImpl(
         return toRateInfo(sessionRepository.findLowestRatedOperators(pageable))
     }
 
-    override fun getHighRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo> {
+    override fun getHighRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo> {
         return toRateInfo(sessionRepository.findHighestRatedOperatorsByDateRange(dto.fromDate, dto.toDate, pageable))
     }
 
-    override fun getLowRateOperatorDateRange(dto: DateRangeDTO, pageable: Pageable): Page<RateInfo> {
+    override fun getLowRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo> {
         return toRateInfo(sessionRepository.findLowestRatedOperatorsByDateRange(dto.fromDate, dto.toDate, pageable))
 
     }
@@ -158,11 +160,71 @@ class SessionServiceImpl(
 
     private fun toRateInfo(results: Page<Array<Any>>): Page<RateInfo> {
         return results.map { result ->
-            val operator = result[0] as User
+            val operator = result[0] as BotUser
             val totalRate = result[1] as Number
             val roundedRate = round(totalRate.toDouble() * 100) / 100
             RateInfo(rate = roundedRate, operator = UserResponse.toResponse(operator))
         }
+    }
+}
+
+interface MessageToOperatorService {
+
+    fun getSessions(): List<SessionResponse>
+    fun getSessionMessages(sessionId: Long): SessionMessagesResponse
+    fun getUnreadMessages(sessionId: Long): SessionMessagesResponse
+    fun sendMessage()
+
+}
+
+@Service
+class MessageToOperatorServiceImpl(
+
+    private val userService: UserService,
+    private val sessionRepository: SessionRepository,
+    private val botMessageRepository: BotMessageRepository
+
+) : MessageToOperatorService {
+    override fun getSessions(): List<SessionResponse> {
+        val waitingSessions = sessionRepository.findAllByStatusAndDeletedFalse(SessionStatusEnum.WAITING)
+        return waitingSessions.map {
+            val count = botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!).count()
+            SessionResponse.toResponse(it, count)
+        }
+    }
+
+    override fun getSessionMessages(sessionId: Long): SessionMessagesResponse {
+        val sessionOpt = sessionRepository.findById(sessionId)
+        if (sessionOpt.isPresent) {
+            val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(sessionId)
+            return SessionMessagesResponse(
+                sessionId,
+                UserResponse.toResponse(sessionOpt.get().user),
+                messages.map { BotMessageResponse.toResponse(it) })
+        }
+        throw SessionNotFoundExistException()
+    }
+
+    @Transactional
+    override fun getUnreadMessages(sessionId: Long): SessionMessagesResponse {
+        val sessionOptional = sessionRepository.findById(sessionId)
+        if (sessionOptional.isPresent) {
+            val unreadMessages =
+                botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId)
+            for (unreadMessage in unreadMessages) {
+                unreadMessage.hasRead = true
+            }
+            botMessageRepository.saveAll(unreadMessages)
+            return SessionMessagesResponse(
+                sessionId,
+                UserResponse.toResponse(sessionOptional.get().user),
+                unreadMessages.map { BotMessageResponse.toResponse(it) })
+        }
+        throw SessionNotFoundExistException()
+    }
+
+    override fun sendMessage() {
+        TODO("Not yet implemented")
     }
 }
 

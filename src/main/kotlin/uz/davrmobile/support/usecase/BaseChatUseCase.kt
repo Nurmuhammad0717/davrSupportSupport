@@ -1,7 +1,6 @@
 package uz.davrmobile.support.usecase
 
 import mu.KotlinLogging
-import org.springframework.security.core.context.SecurityContextHolder
 import uz.davrmobile.support.enm.UserRole
 import uz.davrmobile.support.repository.ChatRepository
 import uz.davrmobile.support.util.getRoles
@@ -12,7 +11,7 @@ open class BaseChatUseCase(
     private val logger = KotlinLogging.logger { }
 
     protected fun checkUser(userId: Long, chatUid: String): Boolean {
-        val roles = SecurityContextHolder.getContext().getRoles()
+        val roles = getRoles()
 
         return if (roles.contains(UserRole.USER) && roles.size == 1) {
             chatRepository.findByClientIdAndChatUID(userId, chatUid).isPresent

@@ -4,12 +4,12 @@ import org.springframework.context.MessageSource
 import org.springframework.transaction.annotation.Transactional
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery
+import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.methods.ParseMode
 import org.telegram.telegrambots.meta.api.methods.send.SendChatAction
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText
+import org.telegram.telegrambots.meta.api.objects.File
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
@@ -19,17 +19,16 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow
 import uz.davrmobile.support.bot.backend.*
-import uz.likwer.zeroonetask4supportbot.bot.bot.Utils.Companion.clearPhone
-import uz.likwer.zeroonetask4supportbot.bot.bot.Utils.Companion.htmlBold
+import uz.davrmobile.support.bot.bot.Utils.Companion.clearPhone
+import uz.davrmobile.support.bot.bot.Utils.Companion.htmlBold
+import java.io.FileOutputStream
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
 open class SupportTelegramBot(
     var username: String,
-    token: String,
+    val token: String,
     var botId: Long,
 
     private val userRepository: UserRepository,
@@ -39,13 +38,17 @@ open class SupportTelegramBot(
     private val diceRepository: DiceRepository,
     private val sessionRepository: SessionRepository,
     private val messageSource: MessageSource,
+    private val fileInfoRepository: FileInfoRepository,
+
     private val executorService: Executor = Executors.newFixedThreadPool(20),
-    val queueEn: ConcurrentHashMap<Long, CopyOnWriteArrayList<BotMessage>> = ConcurrentHashMap<Long, CopyOnWriteArrayList<BotMessage>>(),
-    val queueUz: ConcurrentHashMap<Long, CopyOnWriteArrayList<BotMessage>> = ConcurrentHashMap<Long, CopyOnWriteArrayList<BotMessage>>(),
-    val queueRu: ConcurrentHashMap<Long, CopyOnWriteArrayList<BotMessage>> = ConcurrentHashMap<Long, CopyOnWriteArrayList<BotMessage>>()
 ) : TelegramLongPollingBot(token) {
     companion object {
         val activeBots = mutableMapOf<String, SupportTelegramBot>()
+
+        fun findBotById(botId: Long): SupportTelegramBot? {
+            for (bot in activeBots) if (bot.value.botId == botId) return bot.value
+            return null
+        }
     }
 
     override fun getBotUsername() = username
@@ -95,8 +98,9 @@ open class SupportTelegramBot(
 //            }
         }
     }
+
     @Transactional
-    open fun handleUserMessage(update: Update, user: User) {
+    open fun handleUserMessage(update: Update, user: BotUser) {
         val chatId = user.id
         val message = update.message
 
@@ -167,7 +171,7 @@ open class SupportTelegramBot(
     }
 
     @Transactional
-    open fun checkAndHandleUserSession(user: User, update: Update) {
+    open fun checkAndHandleUserSession(user: BotUser, update: Update) {
         sessionRepository.findLastSessionByUserId(user.id)?.let { session ->
             if (session.isBusy() && session.botId != botId) {
                 findBotById(session.botId)?.let { bot ->
@@ -182,12 +186,7 @@ open class SupportTelegramBot(
         }
     }
 
-    private fun findBotById(botId: Long): SupportTelegramBot? {
-        for (bot in activeBots) if (bot.value.botId == botId) return bot.value
-        return null
-    }
-
-    private fun sendMainMenuMsg(user: User) {
+    private fun sendMainMenuMsg(user: BotUser) {
         val newText = """
             ${getMsg("MENU", user)}:
             
@@ -204,7 +203,7 @@ open class SupportTelegramBot(
         this.execute(sendMessage)
     }
 
-    private fun sendFullNameSavedMsg(user: User) {
+    private fun sendFullNameSavedMsg(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), getMsg("FULL_NAME_SAVED", user))
         val row1 = KeyboardRow(1)
         row1.add(KeyboardButton(getMsg("CONNECT_WITH_OPERATOR", user)))
@@ -214,12 +213,12 @@ open class SupportTelegramBot(
         this.execute(sendMessage)
     }
 
-    private fun sendActionTyping(user: User) {
+    private fun sendActionTyping(user: BotUser) {
         this.execute(SendChatAction(user.id.toString(), "typing", null))
     }
 
     @Transactional
-    open fun handleSessionMsgForUser(update: Update, user: User) {
+    open fun handleSessionMsgForUser(update: Update, user: BotUser) {
         getSession(user).let { session ->
             val savedMessage = newSessionMsg(update, session, user)
 
@@ -255,13 +254,17 @@ open class SupportTelegramBot(
         } else null
     }
 
-    private fun newSessionMsg(update: Update, session: Session, user: User): BotMessage {
+    private fun newSessionMsg(update: Update, session: Session, user: BotUser): BotMessage {
         val message = update.message
         val messageReplyId = if (message.isReply) message.replyToMessage.messageId else null
         val typeAndFileId = determineMessageType(message)
         val location = saveLocation(message)
         val contact = saveContact(message)
         val dice = saveDice(message)
+
+        val fileInfo = typeAndFileId.second?.let { fileId ->
+            downloadAndSaveFile(fileId)
+        }
 
         return botMessageRepository.save(
             BotMessage(
@@ -272,7 +275,7 @@ open class SupportTelegramBot(
                 botMessageType = typeAndFileId.first,
                 text = message.text,
                 caption = message.caption,
-                fileId = typeAndFileId.second,
+                file = fileInfo,
                 location = location,
                 contact = contact,
                 dice = dice
@@ -280,16 +283,37 @@ open class SupportTelegramBot(
         )
     }
 
-    private fun saveUserPhoneNumber(user: User, phoneNumber: String) {
+    private fun downloadAndSaveFile(fileId: String): FileInfo {
+        val fileFromTelegram = this.execute(GetFile(fileId))
+        val inputStream = this.downloadFileAsStream(fileFromTelegram)
+        val fileName = fileFromTelegram.filePath.substringAfterLast("/") +
+                UUID.randomUUID().toString().replace("-", "")
+        val filePath = "./files/$fileName"
+        FileOutputStream(filePath).use { outputStream ->
+            inputStream.copyTo(outputStream)
+        }
+
+        val fileExtension = fileName.substringAfterLast(".")
+        val fileSize = fileFromTelegram.fileSize
+        return fileInfoRepository.save(
+            FileInfo(
+                fileFromTelegram.filePath.substringAfterLast("/").substringBeforeLast("."),
+                fileExtension,
+                filePath, fileSize
+            )
+        )
+    }
+
+    private fun saveUserPhoneNumber(user: BotUser, phoneNumber: String) {
         user.phoneNumber = phoneNumber
         userRepository.save(user)
     }
 
-    private fun handleInvalidPhoneNumber(user: User) {
+    private fun handleInvalidPhoneNumber(user: BotUser) {
         sendWrongNumberMsg(user)
     }
 
-    private fun handleStartCommand(user: User) {
+    private fun handleStartCommand(user: BotUser) {
         if (user.languages.isEmpty()) {
             sendChooseLangMsg(user)
         } else {
@@ -297,7 +321,7 @@ open class SupportTelegramBot(
         }
     }
 
-    private fun updateUserFullName(user: User, text: String) {
+    private fun updateUserFullName(user: BotUser, text: String) {
         user.fullName = text
         user.state = UserStateEnum.ACTIVE_USER
         userRepository.save(user)
@@ -308,10 +332,10 @@ open class SupportTelegramBot(
         val editedMessage = update.editedMessage
         val chatId = editedMessage.from.id
         val messageId = editedMessage.messageId
-        val newText = editedMessage.text
-        val newCaption = editedMessage.caption
+        val editedText = editedMessage.text
+        val editedCaption = editedMessage.caption
 
-        editMessage(chatId, messageId, newText, newCaption)
+        editMessage(chatId, messageId, editedText, editedCaption)
     }
 
     @Transactional
@@ -354,7 +378,7 @@ open class SupportTelegramBot(
                     setRate(sessionId, rate)
                     this.execute(
                         AnswerCallbackQuery(
-                            callbackQuery.id, getMsg("THANK_YOU", user), false, null, null
+                            callbackQuery.id, getMsg("THANK_YOU", user), true, null, null
                         )
                     )
                     this.execute(DeleteMessage(chatId.toString(), callbackQuery.message.messageId))
@@ -364,53 +388,36 @@ open class SupportTelegramBot(
     }
 
     @Transactional
-    open fun editMessage(chatId: Long, messageId: Int, newText: String?, newCaption: String?) {
-        val message = botMessageRepository.findByUserIdAndMessageId(chatId, messageId)
-            ?: throw IllegalArgumentException("Message with ID $messageId not found")
+    open fun editMessage(chatId: Long, messageId: Int, editedText: String?, editedCaption: String?) {
+        botMessageRepository.findByUserIdAndMessageId(chatId, messageId)?.let { message ->
+            editedText?.let {
+                if (message.botMessageType == BotMessageType.TEXT) {
+                    message.editedText = it
+                    botMessageRepository.save(message)
 
-        if (!newText.isNullOrBlank() && message.botMessageType == BotMessageType.TEXT) {
-            message.text = newText
-            if (message.botMessageId != null) {
-                if (message.session.user.id == chatId) {
-                    val editMessage = EditMessageText(newText)
-                    editMessage.messageId = message.botMessageId!!
-                    editMessage.chatId = message.session.operatorId.toString()
-                    this.execute(editMessage)
-                } else {
-                    val editMessage = EditMessageText(newText)
-                    editMessage.messageId = message.botMessageId!!
-                    editMessage.chatId = message.session.user.id.toString()
-                    this.execute(editMessage)
+                    //TODO send edited message to operator
+                }
+            }
+
+            editedCaption?.let {
+                if (message.botMessageType in listOf(
+                        BotMessageType.PHOTO,
+                        BotMessageType.VIDEO,
+                        BotMessageType.DOCUMENT,
+                        BotMessageType.ANIMATION
+                    )
+                ) {
+                    message.editedCaption = it
+                    botMessageRepository.save(message)
+
+                    //TODO send edited message to operator
                 }
             }
         }
-
-        if (!newCaption.isNullOrBlank() &&
-            message.botMessageType in listOf(
-                BotMessageType.PHOTO,
-                BotMessageType.VIDEO,
-                BotMessageType.DOCUMENT,
-                BotMessageType.ANIMATION
-            )
-        ) {
-            message.caption = newCaption
-            if (message.botMessageId != null) {
-                val editMessage = EditMessageCaption()
-                editMessage.caption = newCaption
-                editMessage.messageId = message.botMessageId!!
-                if (message.session.user.id == chatId) {
-                    editMessage.chatId = message.session.operatorId.toString()
-                } else {
-                    editMessage.chatId = message.session.user.id.toString()
-                }
-                this.execute(editMessage)
-            }
-        }
-        botMessageRepository.save(message)
     }
 
     @Synchronized
-    fun getUser(from: org.telegram.telegrambots.meta.api.objects.User): User {
+    fun getUser(from: org.telegram.telegrambots.meta.api.objects.User): BotUser {
         val userOpt = userRepository.findById(from.id)
         if (userOpt.isPresent) {
             return userOpt.get()
@@ -420,14 +427,14 @@ open class SupportTelegramBot(
         var lastName = from.lastName
         lastName = if (lastName == null) "" else " $lastName"
         return userRepository.save(
-            User(
+            BotUser(
                 from.id, username, from.firstName + lastName, "", botId
             )
         )
     }
 
     @Transactional
-    open fun getSession(user: User): Session {
+    open fun getSession(user: BotUser): Session {
         val session = sessionRepository.findLastSessionByUserId(user.id)
         return if (session != null) {
             if (session.isClosed()) {
@@ -480,7 +487,7 @@ open class SupportTelegramBot(
     }
 
     @Transactional
-    open fun handleCommonCommands(text: String, user: User): Boolean {
+    open fun handleCommonCommands(text: String, user: BotUser): Boolean {
         return when (text.lowercase()) {
             "/setlang" -> {
                 sendChooseLangMsg(user)
@@ -497,7 +504,7 @@ open class SupportTelegramBot(
     }
 
     @Transactional
-    open fun stopChat(operator: User) {
+    open fun stopChat(operator: BotUser) {
         val session = sessionRepository.findByOperatorIdAndStatus(operator.id, SessionStatusEnum.BUSY)
         session?.let {
             val user = it.user
@@ -515,7 +522,7 @@ open class SupportTelegramBot(
         }
     }
 
-    open fun sendAskYourQuestionMsg(user: User) {
+    open fun sendAskYourQuestionMsg(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), getMsg("ASK_YOUR_QUESTION", user).htmlBold())
         sendMessage.replyMarkup = ReplyKeyboardRemove(true)
         sendMessage.parseMode = ParseMode.HTML
@@ -524,11 +531,11 @@ open class SupportTelegramBot(
         this.execute(sendMessage)
     }
 
-    open fun sendWrongNumberMsg(user: User) {
+    open fun sendWrongNumberMsg(user: BotUser) {
         this.execute(SendMessage(user.id.toString(), getMsg("WRONG_NUMBER", user)))
     }
 
-    open fun sendRateMsg(user: User, operator: User, session: Session) {
+    open fun sendRateMsg(user: BotUser, operator: BotUser, session: Session) {
         val sendMessage = SendMessage(
             user.id.toString(),
             getMsg("OPERATOR_STOPPED_CHAT", operator) + "\n" + getMsg("PLEASE_RATE_OPERATOR_WORK", operator)
@@ -548,16 +555,17 @@ open class SupportTelegramBot(
         this.execute(sendMessage)
     }
 
-    open fun sendChatStoppedMsg(user: User) {
+    open fun sendChatStoppedMsg(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), getMsg("CHAT_STOPPED", user).htmlBold())
         sendMessage.parseMode = ParseMode.HTML
         sendMessage.replyMarkup = ReplyKeyboardRemove(true)
         this.execute(sendMessage)
     }
 
-    open fun getMsg(key: String, user: User): String {
+    open fun getMsg(key: String, user: BotUser): String {
         try {
             val locale = Locale.forLanguageTag(user.languages.elementAt(0).name.lowercase())
+            return messageSource.getMessage(key, null, locale)
             return messageSource.getMessage(key, null, locale)
         } catch (e: Exception) {
             return "Error"
@@ -573,7 +581,7 @@ open class SupportTelegramBot(
         }
     }
 
-    open fun getMsgKeyByValue(value: String, user: User): String {
+    open fun getMsgKeyByValue(value: String, user: BotUser): String {
         for (language in user.languages) {
             val locale = Locale.forLanguageTag(language.name.lowercase())
             val bundle = ResourceBundle.getBundle("messages", locale)
@@ -582,13 +590,13 @@ open class SupportTelegramBot(
         return ""
     }
 
-    open fun sendChooseLangMsg(user: User) {
+    open fun sendChooseLangMsg(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), "Choose language")
-        val btn1 = InlineKeyboardButton("🇺🇸 O'zbek")
+        val btn1 = InlineKeyboardButton("🇺🇸 English")
         btn1.callbackData = "setLangEN"
         val btn2 = InlineKeyboardButton("🇷🇺 Русский")
         btn2.callbackData = "setLangRU"
-        val btn3 = InlineKeyboardButton("🇺🇿 English")
+        val btn3 = InlineKeyboardButton("🇺🇿 O'zbek")
         btn3.callbackData = "setLangUZ"
         val markup = InlineKeyboardMarkup(listOf(listOf(btn1), listOf(btn2), listOf(btn3)))
         sendMessage.replyMarkup = markup
@@ -598,7 +606,7 @@ open class SupportTelegramBot(
         userRepository.save(user)
     }
 
-    open fun sendSharePhoneMsg(user: User) {
+    open fun sendSharePhoneMsg(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), getMsg("CLICK_TO_SEND_YOUR_PHONE", user))
         val keyboardButton = KeyboardButton(getMsg("SHARE_PHONE_NUMBER", user))
         keyboardButton.requestContact = true
@@ -612,7 +620,7 @@ open class SupportTelegramBot(
         userRepository.save(user)
     }
 
-    open fun sendEnterYourFullName(user: User) {
+    open fun sendEnterYourFullName(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), getMsg("SEND_YOUR_FULL_NAME", user))
         sendMessage.replyMarkup = ReplyKeyboardRemove(true)
         this.execute(sendMessage)

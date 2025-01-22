@@ -1,6 +1,5 @@
 package uz.davrmobile.support.usecase
 
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import uz.davrmobile.support.dto.BaseResult
 import uz.davrmobile.support.enm.SenderType
@@ -28,7 +27,7 @@ class MarkAsReadUseCase(
     }
 
     private fun getSenderType(): SenderType {
-        val roles = SecurityContextHolder.getContext().getRoles()
+        val roles = getRoles()
         return if (roles.contains(UserRole.USER) && roles.size == 1) {
             SenderType.SUPPORT
         } else {

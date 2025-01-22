@@ -32,7 +32,7 @@ class AccessDeniedException : DBusinessException() {
     override fun errorCode() = ErrorCode.ACCESS_DENIED
 }
 
-class UsernameAlreadyExists() : DBusinessException() {
+class UsernameAlreadyExists : DBusinessException() {
     override fun errorCode() = ErrorCode.USERNAME_ALREADY_EXISTS
 }
 
@@ -68,6 +68,6 @@ class MessageNotFoundException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.MESSAGE_NOT_FOUND
 }
 
-class BotNOtFoundException : DBusinessException() {
+class BotNotFoundException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.BOT_NOT_FOUND
 }

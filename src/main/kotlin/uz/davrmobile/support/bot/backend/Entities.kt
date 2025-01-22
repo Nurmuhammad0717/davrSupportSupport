@@ -5,16 +5,18 @@ import org.hibernate.annotations.ColumnDefault
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
+import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
+import uz.davrmobile.support.entity.BaseEntity
 import java.util.*
 
-@MappedSuperclass
-@EntityListeners(AuditingEntityListener::class)
-class BaseEntity(
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
-    @CreatedDate @Temporal(TemporalType.TIMESTAMP) var createdDate: Date? = null,
-    @LastModifiedDate @Temporal(TemporalType.TIMESTAMP) var modifiedDate: Date? = null,
-    @Column(nullable = false) @ColumnDefault(value = "false") var deleted: Boolean = false
-)
+//@MappedSuperclass
+//@EntityListeners(AuditingEntityListener::class)
+//class BaseEntity(
+//    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+//    @CreatedDate @Temporal(TemporalType.TIMESTAMP) var createdDate: Date? = null,
+//    @LastModifiedDate @Temporal(TemporalType.TIMESTAMP) var modifiedDate: Date? = null,
+//    @Column(nullable = false) @ColumnDefault(value = "false") var deleted: Boolean = false
+//)
 
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener::class)
@@ -24,8 +26,8 @@ class BaseUserEntity(
     @Column(nullable = false) @ColumnDefault(value = "false") var deleted: Boolean = false
 )
 
-@Entity(name = "users")
-class User(
+@Entity(name = "bot_user")
+class BotUser(
     @Id @Column(nullable = false) var id: Long,
     @Column(nullable = false, length = 64) val username: String,
     @Column(nullable = false, length = 124) var fullName: String,
@@ -49,12 +51,18 @@ class User(
     }
 }
 
+@Table(
+    name = "session",
+    indexes = [
+        Index(columnList = "user_id, operator_id")
+    ]
+)
 @Entity
 class Session(
-    @ManyToOne val user: User,
+    @ManyToOne @JoinColumn(name = "user_id") val user: BotUser,
     val botId: Long,
     @Enumerated(EnumType.STRING) var status: SessionStatusEnum? = SessionStatusEnum.WAITING,
-    var operatorId: Long? = null,
+    @Column(name = "operator_id")var operatorId: Long? = null,
     var rate: Short? = null,
 ) : BaseEntity() {
     fun hasOperator(): Boolean {
@@ -88,29 +96,44 @@ class Bot(
     @Column(nullable = false) val username: String,
     val name: String,
     @Enumerated(value = EnumType.STRING) var status: BotStatusEnum = BotStatusEnum.ACTIVE,
+    @ElementCollection var operatorIds: MutableSet<Long> = mutableSetOf()
 ) : BaseEntity()
 
+@Table(
+    name = "bot_message",
+    indexes = [
+        Index(columnList = "user_id, session_id")
+    ]
+)
 @Entity(name = "bot_message")
 class BotMessage(
-    @ManyToOne val user: User,
-    @ManyToOne val session: Session,
+    @ManyToOne @JoinColumn(name = "user_id") val user: BotUser,
+    @ManyToOne @JoinColumn(name = "session_id") val session: Session,
     @Column(nullable = false) val messageId: Int,
-    @Column(nullable = true) var botMessageId: Int? = null,
     @Column(nullable = true) val replyMessageId: Int? = null,
     @Column(nullable = true) var text: String? = null,
+    @Column(nullable = true) var editedText: String? = null,
     @Column(nullable = true) var caption: String? = null,
+    @Column(nullable = true) var editedCaption: String? = null,
     @Enumerated(value = EnumType.STRING) val botMessageType: BotMessageType,
-
-    @Column(nullable = true) val fileId: String? = null,
-
+    @OneToOne @JoinColumn(nullable = true) val file: FileInfo? = null,
     @OneToOne @JoinColumn(nullable = true) val location: Location? = null,
     @OneToOne @JoinColumn(nullable = true) val contact: Contact? = null,
-    @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null
+    @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null,
+    var hasRead: Boolean = false,
 ) : BaseEntity()
-
 
 @Entity
 class Contact(
     @Column(nullable = false) val name: String,
     @Column(nullable = false) val phoneNumber: String,
+) : BaseEntity()
+
+@Entity
+class FileInfo(
+    @Column(nullable = false) var name: String,
+    @Column(nullable = false) val extension: String,
+    @Column(nullable = false) val path: String,
+    @Column(nullable = false) val size: Long,
+    @Column(nullable = false, unique = true) val hashId: String = randomHashId(),
 ) : BaseEntity()
