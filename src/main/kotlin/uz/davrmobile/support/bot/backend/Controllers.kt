@@ -3,6 +3,7 @@ package uz.davrmobile.support.bot.backend
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 import uz.davrmobile.support.bot.bot.BotService
 import uz.davrmobile.support.usecase.SendMessageUseCase
 import uz.davrmobile.support.util.IsModerator
@@ -176,3 +177,11 @@ class OperatorController(
     fun sendMessage() = messageToOperatorService.sendMessage()
 }
 
+@RestController
+@RequestMapping("bot-fileinfo")
+class FileInfoController(
+    private val fileInfoService: FileInfoService
+){
+    @PostMapping("upload")
+    fun upload(@RequestParam("file") multipartFile: MultipartFile) = fileInfoService.upload(multipartFile)
+}
