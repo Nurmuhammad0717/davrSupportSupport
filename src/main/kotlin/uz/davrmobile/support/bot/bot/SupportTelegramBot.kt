@@ -566,6 +566,7 @@ open class SupportTelegramBot(
         try {
             val locale = Locale.forLanguageTag(user.languages.elementAt(0).name.lowercase())
             return messageSource.getMessage(key, null, locale)
+            return messageSource.getMessage(key, null, locale)
         } catch (e: Exception) {
             return "Error"
         }
@@ -583,7 +584,7 @@ open class SupportTelegramBot(
     open fun getMsgKeyByValue(value: String, user: BotUser): String {
         for (language in user.languages) {
             val locale = Locale.forLanguageTag(language.name.lowercase())
-            val bundle = ResourceBundle.getBundle("messages", locale)
+            val bundle = ResourceBundle.getBundle("bot_messages", locale)
             for (key in bundle.keySet()) if (bundle.getString(key) == value) return key
         }
         return ""
@@ -591,11 +592,11 @@ open class SupportTelegramBot(
 
     open fun sendChooseLangMsg(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), "Choose language")
-        val btn1 = InlineKeyboardButton("🇺🇸 O'zbek")
+        val btn1 = InlineKeyboardButton("🇺🇸 English")
         btn1.callbackData = "setLangEN"
         val btn2 = InlineKeyboardButton("🇷🇺 Русский")
         btn2.callbackData = "setLangRU"
-        val btn3 = InlineKeyboardButton("🇺🇿 English")
+        val btn3 = InlineKeyboardButton("🇺🇿 O'zbek")
         btn3.callbackData = "setLangUZ"
         val markup = InlineKeyboardMarkup(listOf(listOf(btn1), listOf(btn2), listOf(btn3)))
         sendMessage.replyMarkup = markup

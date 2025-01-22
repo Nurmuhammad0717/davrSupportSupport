@@ -3,7 +3,6 @@ package uz.davrmobile.support.usecase
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import uz.davrmobile.support.dto.SupportResultQueryDto
 import uz.davrmobile.support.enm.UserRole
@@ -18,8 +17,7 @@ class GetChatsUseCase(
 
     fun execute(pageable: Pageable): Page<SupportResultQueryDto> {
         val userId = userId()
-        val roles = SecurityContextHolder.getContext()
-            .getRoles()
+        val roles = getRoles()
 
         return if (roles.contains(UserRole.USER) && roles.size == 1) {
             val count = customChatRepository.countUsersChats(userId)

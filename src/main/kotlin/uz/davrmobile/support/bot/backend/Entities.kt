@@ -34,7 +34,7 @@ class BotUser(
     @Column(nullable = false, length = 13) var phoneNumber: String,
     @Column(nullable = false) var botId: Long,
     @ElementCollection(targetClass = LanguageEnum::class, fetch = FetchType.EAGER)
-    @CollectionTable(name = "bot_user_language", joinColumns = [JoinColumn(name = "bot_user_id")])
+    @CollectionTable(name = "user_language", joinColumns = [JoinColumn(name = "user_id")])
     @Enumerated(EnumType.STRING)
     var languages: MutableSet<LanguageEnum> = mutableSetOf(),
     @Enumerated(value = EnumType.STRING) var state: UserStateEnum = UserStateEnum.NEW_USER,
@@ -54,12 +54,12 @@ class BotUser(
 @Table(
     name = "session",
     indexes = [
-        Index(columnList = "bot_user_id, operator_id")
+        Index(columnList = "user_id, operator_id")
     ]
 )
 @Entity
 class Session(
-    @ManyToOne @JoinColumn(name = "bot_user_id") val user: BotUser,
+    @ManyToOne @JoinColumn(name = "user_id") val user: BotUser,
     val botId: Long,
     @Enumerated(EnumType.STRING) var status: SessionStatusEnum? = SessionStatusEnum.WAITING,
     @Column(name = "operator_id")var operatorId: Long? = null,
@@ -102,12 +102,12 @@ class Bot(
 @Table(
     name = "bot_message",
     indexes = [
-        Index(columnList = "bot_user_id, session_id")
+        Index(columnList = "user_id, session_id")
     ]
 )
 @Entity(name = "bot_message")
 class BotMessage(
-    @ManyToOne @JoinColumn(name = "bot_user_id") val user: BotUser,
+    @ManyToOne @JoinColumn(name = "user_id") val user: BotUser,
     @ManyToOne @JoinColumn(name = "session_id") val session: Session,
     @Column(nullable = false) val messageId: Int,
     @Column(nullable = true) val replyMessageId: Int? = null,
