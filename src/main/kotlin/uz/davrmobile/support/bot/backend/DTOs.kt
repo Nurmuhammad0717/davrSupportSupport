@@ -193,6 +193,7 @@ data class DiceResponse(
 
 data class  FileInfoResponse(
     val id: Long,
+    val upload: String,
     val name: String,
     val hashId: String,
     val extension: String,
@@ -201,6 +202,6 @@ data class  FileInfoResponse(
 ) {
     companion object {
         fun toResponse(file: FileInfo): FileInfoResponse = FileInfoResponse(
-            file.id!!, file.name, file.hashId, file.extension, file.size, file.path)
+            file.id!!, file.uploadName, file.name, file.hashId, file.extension, file.size, file.path)
     }
 }

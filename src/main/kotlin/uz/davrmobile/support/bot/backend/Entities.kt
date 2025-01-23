@@ -135,6 +135,7 @@ class Contact(
 @Entity
 class FileInfo(
     @Column(nullable = false) var name: String,
+    @Column(nullable = false) val uploadName: String,
     @Column(nullable = false) val extension: String,
     @Column(nullable = false) val path: String,
     @Column(nullable = false) val size: Long,
