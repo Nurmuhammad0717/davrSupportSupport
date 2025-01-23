@@ -2,6 +2,7 @@ package uz.davrmobile.support.bot.backend
 
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonInclude
+import org.jetbrains.annotations.Nullable
 import java.util.*
 
 data class BaseMessage(val code: Int, val message: String?)
@@ -70,7 +71,7 @@ data class BotResponse(
 
 data class SessionResponse(
     val id: String,
-    val user: BotUser,
+    val user: UserResponse,
     val botId: String,
     val status: SessionStatusEnum,
     val newMessagesCount: Int
@@ -78,7 +79,7 @@ data class SessionResponse(
     companion object {
         fun toResponse(session: Session, messageCount: Int, bot: Bot): SessionResponse {
             session.run {
-                return SessionResponse(hashId, user, bot.hashId, status!!, messageCount)
+                return SessionResponse(hashId, UserResponse.toResponse(user), bot.hashId, status!!, messageCount)
             }
         }
     }
@@ -93,7 +94,6 @@ data class SessionMessagesResponse(
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class BotMessageResponse(
     val id: String,
-    val sessionId: String,
     val messageId: Int,
     val type: BotMessageType,
     val replyMessageId: Int?,
@@ -109,7 +109,7 @@ data class BotMessageResponse(
             botMessage.run {
                 return BotMessageResponse(
                     hashId,
-                    session.hashId, messageId, botMessageType,
+                    messageId, botMessageType,
                     replyMessageId, text, caption,
                     file?.hashId,
                     location?.let { LocationResponse.toResponse(it) },
@@ -121,17 +121,16 @@ data class BotMessageResponse(
     }
 }
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 data class OperatorSentMsgRequest(
-    val sessionId: String,
-    val type: BotMessageType,
-    val replyMessageId: Int?,
-    val text: String?,
-    val caption: String?,
-    val fileId: List<String>?,
-    val location: LocationRequest?,
-    val contact: ContactRequest?,
-    val dice: DiceRequest?
+    val sessionId: String?,
+    val type: BotMessageType?,
+    @Nullable val replyMessageId: Int?,
+    @Nullable val text: String?,
+    @Nullable val caption: String?,
+    @Nullable val fileId: List<String>?,
+    @Nullable val location: LocationRequest?,
+    @Nullable val contact: ContactRequest?,
+    @Nullable val dice: DiceRequest?
 )
 
 data class LocationRequest(

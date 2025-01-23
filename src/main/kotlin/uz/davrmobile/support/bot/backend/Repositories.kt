@@ -19,10 +19,10 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
 
     fun findAllBySessionIdAndDeletedFalse(sessionId: Long): List<BotMessage>
     fun findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long): List<BotMessage>
+
     fun countAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long): Int
 
     fun findByUserIdAndMessageId(userId: Long, messageId: Int): BotMessage?
-
     @Query(
         """
             SELECT NEW map(m.session as session, m as message)
@@ -32,7 +32,6 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
     """
     )
     fun findMessagesGroupedBySessionId(): List<Map<Any, Any>>
-    fun findAllByHashIdAndDeletedFalse(hashId:String): List<BotMessage>
     abstract fun findAllByHashIdAndHasReadFalseAndDeletedFalse(hashId: String): List<BotMessage>
 }
 
