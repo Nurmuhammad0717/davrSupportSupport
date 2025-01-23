@@ -18,6 +18,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.media.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
+import uz.davrmobile.support.util.getUserId
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -177,11 +178,11 @@ interface MessageToOperatorService {
     fun getSessionMessages(id: String): SessionMessagesResponse
     fun getUnreadMessages(id: String): SessionMessagesResponse
     fun sendMessage(message: OperatorSentMsgRequest)
+    fun closeSession(sessionHash: String)
 }
 
 @Service
 class MessageToOperatorServiceImpl(
-    private val userService: UserService,
     private val sessionRepository: SessionRepository,
     private val botMessageRepository: BotMessageRepository,
     private val botRepository: BotRepository,
@@ -199,7 +200,7 @@ class MessageToOperatorServiceImpl(
 
     override fun getSessionMessages(id: String): SessionMessagesResponse {
         sessionRepository.findByHashId(id)?.let { session ->
-            val messages = botMessageRepository.findAllByHashIdAndDeletedFalse(id)
+            val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(session.id!!)
             return SessionMessagesResponse(
                 session.hashId,
                 UserResponse.toResponse(session.user),
@@ -211,7 +212,7 @@ class MessageToOperatorServiceImpl(
     @Transactional
     override fun getUnreadMessages(id: String): SessionMessagesResponse {
         sessionRepository.findByHashId(id)?.let { session ->
-            val unreadMessages = botMessageRepository.findAllByHashIdAndHasReadFalseAndDeletedFalse(id)
+            val unreadMessages = botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(session.id!!)
             for (unreadMessage in unreadMessages) {
                 unreadMessage.hasRead = true
             }
@@ -226,13 +227,18 @@ class MessageToOperatorServiceImpl(
 
     @Transactional
     override fun sendMessage(message: OperatorSentMsgRequest) {
-        val sessionHashId = message.sessionId
+        val sessionHashId = message.sessionId!!
         sessionRepository.findByHashId(sessionHashId)?.let { session ->
+            if(session.operatorId==null){
+                session.operatorId = getUserId()
+                session.status = SessionStatusEnum.BUSY
+                sessionRepository.save(session)
+            } else if(session.isBusy()) throw BusySessionException()
             val user = session.user
             val userId = user.id.toString()
             botRepository.findByIdAndDeletedFalse(session.botId)?.let { bot ->
                 SupportTelegramBot.findBotById(bot.id!!)?.let { absSender ->
-                    when (message.type) {
+                    when (message.type!!) {
                         BotMessageType.TEXT -> {
                             message.text?.let {
                                 absSender.execute(SendMessage(userId, it))
@@ -271,6 +277,15 @@ class MessageToOperatorServiceImpl(
             } ?: throw BotNotFoundException()
         } ?: throw SessionNotFoundException()
     }
+
+    override fun closeSession(sessionHash: String) {
+        sessionRepository.findByHashId(sessionHash)?.let {
+            if(it.isClosed()) return
+            it.status = SessionStatusEnum.CLOSED
+            sessionRepository.save(it)
+        }
+    }
+
     private fun getInputMediaByFileInfo(fileInfo: FileInfo): InputMedia {
         val filePath = File(fileInfo.path)
         val fileName = "test-" + fileInfo.name

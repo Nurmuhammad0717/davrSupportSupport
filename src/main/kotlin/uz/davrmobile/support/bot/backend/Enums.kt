@@ -14,6 +14,7 @@ enum class ErrorCode(val code: Int) {
     BAD_CREDENTIALS(640),
     ACCESS_DENIED(641),
     USERNAME_ALREADY_EXISTS(642),
+    BUSY_SESSION(643)
 }
 
 enum class UserRole {

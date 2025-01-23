@@ -180,7 +180,7 @@ class OperatorController(
 
     @IsModerator
     @PostMapping("/send-msg")
-    fun sendMessage(message: OperatorSentMsgRequest) =
+    fun sendMessage(@RequestBody message: OperatorSentMsgRequest) =
         messageToOperatorService.sendMessage(message)
 }
 
@@ -188,7 +188,7 @@ class OperatorController(
 @RequestMapping("bot-fileinfo")
 class FileInfoController(
     private val fileInfoService: FileInfoService
-){
+) {
     @PostMapping("upload")
     fun upload(@RequestParam("file") multipartFile: MutableList<MultipartFile>) = fileInfoService.upload(multipartFile)
 }
