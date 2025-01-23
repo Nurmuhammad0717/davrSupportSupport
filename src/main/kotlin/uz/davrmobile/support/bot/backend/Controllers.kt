@@ -7,6 +7,7 @@ import org.springframework.web.multipart.MultipartFile
 import uz.davrmobile.support.bot.bot.BotService
 import uz.davrmobile.support.util.IsModerator
 import uz.davrmobile.support.util.IsUser
+import javax.servlet.http.HttpServletResponse
 
 
 @RestController
@@ -190,4 +191,13 @@ class FileInfoController(
 ) {
     @PostMapping("upload")
     fun upload(@RequestParam("file") multipartFile: MutableList<MultipartFile>) = fileInfoService.upload(multipartFile)
+
+    @GetMapping("download/{hash-id}")
+    fun download(@PathVariable("hash-id") hashId: String, response: HttpServletResponse) = fileInfoService.download(hashId, response)
+
+    @GetMapping("{hash-id}")
+    fun find(@PathVariable("hash-id") hashId: String) = fileInfoService.find(hashId)
+
+    @GetMapping
+    fun findAll(pageable: Pageable) = fileInfoService.findAll(pageable)
 }

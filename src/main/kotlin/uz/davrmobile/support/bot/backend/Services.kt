@@ -25,6 +25,8 @@ import org.telegram.telegrambots.meta.api.objects.media.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
 import uz.davrmobile.support.util.getUserId
 import java.io.File
+import java.io.FileInputStream
+import javax.servlet.http.HttpServletResponse
 import javax.transaction.Transactional
 import kotlin.math.round
 
@@ -50,6 +52,9 @@ interface SessionService {
 }
 
 interface FileInfoService {
+    fun download(hashId: String, response: HttpServletResponse)
+    fun find(hashId: String): FileInfoResponse
+    fun findAll(pageable: Pageable): Page<FileInfoResponse>
     fun upload(multipartFileList: MutableList<MultipartFile>): List<FileInfoResponse>
 }
 
@@ -407,6 +412,7 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
             val name = takeFileName(multipartFile)
             val fileInfo = FileInfo(
                 name = name,
+                uploadName = multipartFile.originalFilename!!,
                 extension = FilenameUtils.getExtension(multipartFile.originalFilename),
                 path = getFilePath(name).toString(),
                 size = multipartFile.size
@@ -425,6 +431,31 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
             responseFiles.add(FileInfoResponse.toResponse(savedFileInfo))
         }
         return responseFiles
+    }
+
+    override fun download(hashId: String, response: HttpServletResponse) {
+        val fileDB = fileInfoRepository.findByHashId(hashId)?: throw FileNotFoundException()
+        val path: Path = Paths.get(fileDB.path).normalize()
+        val file = path.toFile()
+        response.contentType = Files.probeContentType(path) ?: "application/octet-stream"
+        response.setHeader("Content-Disposition", "attachment; filename=${file.name}")
+        response.setContentLengthLong(file.length())
+
+        FileInputStream(file).use { inputStream ->
+            response.outputStream.use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+        }
+    }
+
+    override fun find(hashId: String): FileInfoResponse {
+        val file = fileInfoRepository.findByHashId(hashId) ?: throw FileNotFoundException()
+        return FileInfoResponse.toResponse(file)
+    }
+
+    override fun findAll(pageable: Pageable): Page<FileInfoResponse> {
+        val result = fileInfoRepository.findAll(pageable)
+        return result.map { FileInfoResponse.toResponse(it) }
     }
 
     private fun getFilePath(name: String): Path {

@@ -120,7 +120,7 @@ class BotMessage(
     @Column(nullable = true, columnDefinition = "TEXT") var caption: String? = null,
     @Column(nullable = true, columnDefinition = "TEXT") var originalCaption: String? = null,
     @Enumerated(value = EnumType.STRING) val botMessageType: BotMessageType,
-    @OneToOne @JoinColumn(nullable = true) val file: FileInfo? = null,
+        @OneToOne @JoinColumn(nullable = true) val file: FileInfo? = null,
     @OneToOne @JoinColumn(nullable = true) val location: Location? = null,
     @OneToOne @JoinColumn(nullable = true) val contact: Contact? = null,
     @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null,
@@ -139,6 +139,7 @@ class Contact(
 @Entity
 class FileInfo(
     @Column(nullable = false) var name: String,
+    @Column(nullable = false) val uploadName: String,
     @Column(nullable = false) val extension: String,
     @Column(nullable = false) val path: String,
     @Column(nullable = false) val size: Long,
