@@ -525,7 +525,7 @@ open class SupportTelegramBot(
             userRepository.save(user)
 
             sendChatStoppedMsg(operator)
-            sendRateMsg(user, operator, session)
+            sendRateMsg(user, session)
             sendMainMenuMsg(user)
         }
     }
@@ -543,10 +543,10 @@ open class SupportTelegramBot(
         this.execute(SendMessage(user.id.toString(), getMsg("WRONG_NUMBER", user)))
     }
 
-    open fun sendRateMsg(user: BotUser, operator: BotUser, session: Session) {
+    open fun sendRateMsg(user: BotUser, session: Session) {
         val sendMessage = SendMessage(
             user.id.toString(),
-            getMsg("OPERATOR_STOPPED_CHAT", operator) + "\n" + getMsg("PLEASE_RATE_OPERATOR_WORK", operator)
+            getMsg("OPERATOR_STOPPED_CHAT", user) + "\n" + getMsg("PLEASE_RATE_OPERATOR_WORK", user)
         )
         val btn1 = InlineKeyboardButton(getMsg("VERY_BAD", user))
         btn1.callbackData = "rateS1" + session.id

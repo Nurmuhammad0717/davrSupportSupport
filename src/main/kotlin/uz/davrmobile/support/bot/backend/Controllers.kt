@@ -17,7 +17,6 @@ class BotController(private val botService: BotService) {
     @PostMapping
     fun create(@RequestBody req: TokenRequest) = botService.createBot(req)
 
-//    @IsAdmin
     @IsModerator
     @GetMapping
     fun getAll() = botService.getAllBots()

@@ -83,9 +83,9 @@ data class GetSessionsResponse(
 data class UserSessionResponse(
     val id: Long,
     val fullName: String,
-){
-    companion object{
-        fun toResponse(user: BotUser): UserSessionResponse{
+) {
+    companion object {
+        fun toResponse(user: BotUser): UserSessionResponse {
             return UserSessionResponse(user.id, user.fullName)
         }
     }
@@ -96,12 +96,22 @@ data class SessionResponse(
     val user: UserSessionResponse,
     val botId: String,
     val status: SessionStatusEnum,
-    val newMessagesCount: Int
+    val newMessagesCount: Int,
+    val lang: String,
+    val date: Long
 ) {
     companion object {
         fun toResponse(session: Session, messageCount: Int, bot: Bot): SessionResponse {
             session.run {
-                return SessionResponse(hashId, UserSessionResponse.toResponse(user), bot.hashId, status!!, messageCount)
+                return SessionResponse(
+                    hashId,
+                    UserSessionResponse.toResponse(user),
+                    bot.hashId,
+                    status!!,
+                    messageCount,
+                    user.languages.elementAt(0).toString(),
+                    createdDate!!.toInstant().epochSecond
+                )
             }
         }
     }
@@ -209,7 +219,7 @@ data class DiceResponse(
     }
 }
 
-data class  FileInfoResponse(
+data class FileInfoResponse(
     val id: Long,
     val upload: String,
     val name: String,
@@ -220,6 +230,7 @@ data class  FileInfoResponse(
 ) {
     companion object {
         fun toResponse(file: FileInfo): FileInfoResponse = FileInfoResponse(
-            file.id!!, file.uploadName, file.name, file.hashId, file.extension, file.size, file.path)
+            file.id!!, file.uploadName, file.name, file.hashId, file.extension, file.size, file.path
+        )
     }
 }

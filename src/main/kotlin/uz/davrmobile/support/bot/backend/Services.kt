@@ -309,6 +309,7 @@ class MessageToOperatorServiceImpl(
             if (it.isClosed()) return
             it.status = SessionStatusEnum.CLOSED
             sessionRepository.save(it)
+            SupportTelegramBot.findBotById(it.botId)?.sendRateMsg(it.user, it)
         }
     }
 }
