@@ -108,7 +108,7 @@ class BotService(
         botRepository.deleteByHashId(id)
     }
 
-    fun addBotToOperator(id: String) {
+    fun  addBotToOperator(id: String) {
         botRepository.findByHashId(id)?.let { bot ->
             bot.operatorIds.add(getUserId())
             botRepository.save(bot)

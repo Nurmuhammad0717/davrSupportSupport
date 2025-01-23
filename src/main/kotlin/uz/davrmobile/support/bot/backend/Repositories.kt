@@ -25,7 +25,7 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
 
     @Query(
         """
-        SELECT NEW map(m.session as session, m as message)
+            SELECT NEW map(m.session as session, m as message)
         FROM bot_message m
         WHERE m.deleted = false
         ORDER BY m.session.id ASC, m.id ASC

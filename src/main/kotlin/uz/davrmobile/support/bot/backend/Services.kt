@@ -16,6 +16,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.media.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
+import uz.davrmobile.support.util.getUserId
 import java.io.File
 import javax.transaction.Transactional
 import kotlin.math.round
@@ -173,6 +174,7 @@ interface MessageToOperatorService {
     fun getSessionMessages(id: String): SessionMessagesResponse
     fun getUnreadMessages(id: String): SessionMessagesResponse
     fun sendMessage(message: OperatorSentMsgRequest)
+    fun closeSession(sessionHash: String)
 }
 
 @Service
@@ -224,6 +226,11 @@ class MessageToOperatorServiceImpl(
     override fun sendMessage(message: OperatorSentMsgRequest) {
         val sessionHashId = message.sessionId
         sessionRepository.findByHashId(sessionHashId)?.let { session ->
+            if(session.operatorId==null){
+                session.operatorId = getUserId()
+                session.status = SessionStatusEnum.BUSY
+                sessionRepository.save(session)
+            } else if(session.isBusy()) throw BusySessionException()
             val user = session.user
             val userId = user.id.toString()
             botRepository.findByIdAndDeletedFalse(session.botId)?.let { bot ->
@@ -267,6 +274,15 @@ class MessageToOperatorServiceImpl(
             } ?: throw BotNotFoundException()
         } ?: throw SessionNotFoundException()
     }
+
+    override fun closeSession(sessionHash: String) {
+        sessionRepository.findByHashId(sessionHash)?.let {
+            if(it.isClosed()) return
+            it.status = SessionStatusEnum.CLOSED
+            sessionRepository.save(it)
+        }
+    }
+
     private fun getInputMediaByFileInfo(fileInfo: FileInfo): InputMedia {
         val filePath = File(fileInfo.path)
         val fileName = "test-" + fileInfo.name
