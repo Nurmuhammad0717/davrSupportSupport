@@ -5,6 +5,11 @@ import uz.davrmobile.support.enm.UserRole
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
+@PreAuthorize("hasAnyAuthority('MODERATOR','DEV')")
+annotation class IsAdmin
+
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
 @PreAuthorize("hasAnyAuthority('MODERATOR','DEV', 'SUPPORT', 'CALL_CENTER')")
 annotation class IsModerator
 

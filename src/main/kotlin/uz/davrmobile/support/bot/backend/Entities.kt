@@ -95,6 +95,12 @@ class Dice(
     @Column(nullable = false) val emoji: String,
 ) : BaseEntity()
 
+
+@Table(
+    indexes = [
+        Index(columnList = "id")
+    ]
+)
 @Entity
 class Bot(
     @Column(nullable = false) val token: String,
@@ -120,7 +126,7 @@ class BotMessage(
     @Column(nullable = true, columnDefinition = "TEXT") var caption: String? = null,
     @Column(nullable = true, columnDefinition = "TEXT") var originalCaption: String? = null,
     @Enumerated(value = EnumType.STRING) val botMessageType: BotMessageType,
-        @OneToOne @JoinColumn(nullable = true) val file: FileInfo? = null,
+    @OneToOne @JoinColumn(nullable = true) val file: FileInfo? = null,
     @OneToOne @JoinColumn(nullable = true) val location: Location? = null,
     @OneToOne @JoinColumn(nullable = true) val contact: Contact? = null,
     @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null,

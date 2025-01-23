@@ -23,7 +23,11 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import uz.davrmobile.support.bot.backend.*
 import uz.davrmobile.support.bot.bot.Utils.Companion.clearPhone
 import uz.davrmobile.support.bot.bot.Utils.Companion.htmlBold
+import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
 import java.io.FileOutputStream
+import java.nio.file.Paths
+import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.*
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -283,23 +287,28 @@ open class SupportTelegramBot(
         )
     }
 
-    private fun downloadAndSaveFile(fileId: String): FileInfo {
+    private fun downloadAndSaveFile(fileIdAndFileName: String): FileInfo {
+        val uploadFileName = fileIdAndFileName.substringAfter("$%%%$")
+        val fileId = fileIdAndFileName.substringBefore("$%%%$")
         val fileFromTelegram = this.execute(GetFile(fileId))
         val inputStream = this.downloadFileAsStream(fileFromTelegram)
-        val fileName = fileFromTelegram.filePath.substringAfterLast("/") +
-                UUID.randomUUID().toString().replace("-", "")
-        val filePath = "./files/$fileName"
+        var fileName = fileFromTelegram.filePath.substringAfterLast("/")
+        val fileExtension = fileName.substringAfterLast(".")
+        val now = LocalDateTime.now()
+        fileName = fileName.substringBeforeLast(".") + randomHashId() + "." + fileExtension
+        val filePath = "./files/${LocalDate.now()}/$fileName"
         FileOutputStream(filePath).use { outputStream ->
             inputStream.copyTo(outputStream)
         }
 
-        val fileExtension = fileName.substringAfterLast(".")
         val fileSize = fileFromTelegram.fileSize
+
         return fileInfoRepository.save(
             FileInfo(
-                fileFromTelegram.filePath.substringAfterLast("/").substringBeforeLast("."),
+                fileName, uploadFileName,
                 fileExtension,
-                filePath, fileSize
+                filePath,
+                fileSize
             )
         )
     }
@@ -400,10 +409,7 @@ open class SupportTelegramBot(
 
             editedCaption?.let {
                 if (message.botMessageType in listOf(
-                        BotMessageType.PHOTO,
-                        BotMessageType.VIDEO,
-                        BotMessageType.DOCUMENT,
-                        BotMessageType.ANIMATION
+                        BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
                     )
                 ) {
                     message.originalText = message.caption
@@ -479,7 +485,11 @@ open class SupportTelegramBot(
             message.hasDice() -> Pair(BotMessageType.DICE, null)
             message.hasSticker() -> Pair(BotMessageType.STICKER, message.sticker.fileId)
             message.hasAnimation() -> Pair(BotMessageType.ANIMATION, message.animation.fileId)
-            message.hasDocument() -> Pair(BotMessageType.DOCUMENT, message.document.fileId)
+            message.hasDocument() -> Pair(
+                BotMessageType.DOCUMENT,
+                message.document.fileId + "$%%%$" + message.document.fileName
+            )
+
             else -> throw RuntimeException("un support type: $message")
         }
     }

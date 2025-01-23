@@ -39,8 +39,6 @@ interface UserService {
 interface SessionService {
     fun getAllSession(pageable: Pageable): Page<SessionInfo>
     fun getOne(id: Long): SessionInfo
-    fun getAllSessionUser(userId: Long, pageable: Pageable): Page<SessionInfo>
-    fun getAllSessionOperator(operatorId: Long, pageable: Pageable): Page<SessionInfo>
     fun getAllSessionUserDateRange(userId: Long, dto: DateRangeRequest, pageable: Pageable): Page<SessionInfo>
     fun getAllSessionOperatorDateRange(operatorId: Long, dto: DateRangeRequest, pageable: Pageable): Page<SessionInfo>
     fun getSessionsByStatus(status: SessionStatusEnum, pageable: Pageable): Page<SessionInfo>
@@ -95,15 +93,6 @@ class SessionServiceImpl(
     override fun getOne(id: Long): SessionInfo {
         val session = sessionRepository.findById(id).orElseThrow { SessionNotFoundException() }
         return toSessionInfo(session)
-    }
-
-    override fun getAllSessionUser(userId: Long, pageable: Pageable): Page<SessionInfo> {
-        return toSessionInfo(sessionRepository.getSessionByUserId(userId, pageable))
-    }
-
-
-    override fun getAllSessionOperator(operatorId: Long, pageable: Pageable): Page<SessionInfo> {
-        return toSessionInfo(sessionRepository.getSessionByOperatorId(operatorId, pageable))
     }
 
     override fun getAllSessionUserDateRange(
@@ -315,6 +304,9 @@ class MessageToOperatorServiceImpl(
         if (isDocument) {
             for ((index, inputMedia) in inputMediaList.withIndex()) {
                 val send = InputMediaDocument()
+                println(inputMedia.media)
+                println(inputMedia.mediaName)
+                println(inputMedia.newMediaFile)
                 send.setMedia(inputMedia.newMediaFile, inputMedia.mediaName)
                 if (inputMediaList.size - 1 == index)
                     send.caption = caption
@@ -324,7 +316,7 @@ class MessageToOperatorServiceImpl(
 
         if (inputMediaListTemp.size == 1) {
             val media = inputMediaListTemp[0]
-            val inputFile = InputFile().setMedia(File(media.media))
+            val inputFile = InputFile().apply { setMedia(media.newMediaFile, media.mediaName) }
 
             when (media) {
                 is InputMediaAnimation -> {
@@ -360,10 +352,11 @@ class MessageToOperatorServiceImpl(
                 }
 
                 else -> {
-                    val send = SendDocument()
-                    send.chatId = userId
-                    send.document = inputFile
-                    send.caption = caption
+                    val send = SendDocument().apply {
+                        chatId = userId
+                        document = inputFile
+                        this.caption = caption
+                    }
                     absSender.execute(send)
                 }
             }
@@ -378,7 +371,7 @@ class MessageToOperatorServiceImpl(
 
     private fun getInputMediaByFileInfo(fileInfo: FileInfo, caption: String?): InputMedia {
         val filePath = File(Paths.get(fileInfo.path).toAbsolutePath().toString())
-        val fileName = fileInfo.name
+        val fileName = fileInfo.uploadName
         val extension = fileInfo.extension.lowercase()
         val inputMedia = when (extension) {
             "gif" -> InputMediaAnimation()
@@ -434,7 +427,7 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
     }
 
     override fun download(hashId: String, response: HttpServletResponse) {
-        val fileDB = fileInfoRepository.findByHashId(hashId)?: throw FileNotFoundException()
+        val fileDB = fileInfoRepository.findByHashId(hashId) ?: throw FileNotFoundException()
         val path: Path = Paths.get(fileDB.path).normalize()
         val file = path.toFile()
         response.contentType = Files.probeContentType(path) ?: "application/octet-stream"
