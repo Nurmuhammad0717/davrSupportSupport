@@ -116,7 +116,7 @@ class BotMessage(
     @Column(nullable = true) var caption: String? = null,
     @Column(nullable = true) var originalCaption: String? = null,
     @Enumerated(value = EnumType.STRING) val botMessageType: BotMessageType,
-    @OneToOne @JoinColumn(nullable = true) val file: FileInfo? = null,
+        @OneToOne @JoinColumn(nullable = true) val file: FileInfo? = null,
     @OneToOne @JoinColumn(nullable = true) val location: Location? = null,
     @OneToOne @JoinColumn(nullable = true) val contact: Contact? = null,
     @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null,

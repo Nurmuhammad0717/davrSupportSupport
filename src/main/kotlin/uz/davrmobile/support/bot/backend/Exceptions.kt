@@ -75,3 +75,9 @@ class BotNotFoundException : DBusinessException() {
 class BusySessionException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.BUSY_SESSION
 }
+
+class FileNotFoundException : DBusinessException() {
+    override fun errorCode(): ErrorCode = ErrorCode.FILE_NOT_FOUND
+}
+
+

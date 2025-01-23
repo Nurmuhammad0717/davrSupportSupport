@@ -3,6 +3,7 @@ package uz.davrmobile.support.bot.backend
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonInclude
 import org.jetbrains.annotations.Nullable
+import org.springframework.data.jpa.domain.AbstractPersistable_.id
 import java.util.*
 
 data class BaseMessage(val code: Int, val message: String?)
@@ -184,5 +185,19 @@ data class DiceResponse(
                 return DiceResponse(value, value.toString())
             }
         }
+    }
+}
+
+data class  FileInfoResponse(
+    val id: Long,
+    val name: String,
+    val hashId: String,
+    val extension: String,
+    val size: Long,
+    val path: String
+) {
+    companion object {
+        fun toResponse(file: FileInfo): FileInfoResponse = FileInfoResponse(
+            file.id!!, file.name, file.hashId, file.extension, file.size, file.path)
     }
 }
