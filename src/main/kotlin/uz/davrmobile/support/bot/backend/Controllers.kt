@@ -196,4 +196,9 @@ class FileInfoController(
     @GetMapping("download/{hash-id}")
     fun download(@PathVariable("hash-id") hashId: String, response: HttpServletResponse) = fileInfoService.download(hashId, response)
 
+    @GetMapping("{hash-id}")
+    fun find(@PathVariable("hash-id") hashId: String) = fileInfoService.find(hashId)
+
+    @GetMapping
+    fun findAll(pageable: Pageable) = fileInfoService.findAll(pageable)
 }

@@ -54,7 +54,7 @@ interface SessionService {
 interface FileInfoService {
     fun download(hashId: String, response: HttpServletResponse)
     fun find(hashId: String): FileInfoResponse
-    fun findAll(pageable: Pageable): List<FileInfoResponse>
+    fun findAll(pageable: Pageable): Page<FileInfoResponse>
     fun upload(multipartFileList: MutableList<MultipartFile>): List<FileInfoResponse>
 }
 
@@ -415,11 +415,13 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
     }
 
     override fun find(hashId: String): FileInfoResponse {
-        TODO("Not yet implemented")
+        val file = fileInfoRepository.findByHashId(hashId) ?: throw FileNotFoundException()
+        return FileInfoResponse.toResponse(file)
     }
 
-    override fun findAll(pageable: Pageable): List<FileInfoResponse> {
-        TODO("Not yet implemented")
+    override fun findAll(pageable: Pageable): Page<FileInfoResponse> {
+        val result = fileInfoRepository.findAll(pageable)
+        return result.map { FileInfoResponse.toResponse(it) }
     }
 
     private fun getFilePath(name: String): Path {
