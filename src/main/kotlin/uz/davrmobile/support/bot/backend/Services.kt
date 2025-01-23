@@ -182,7 +182,7 @@ class SessionServiceImpl(
 }
 
 interface MessageToOperatorService {
-    fun getSessions(): List<SessionResponse>
+    fun getSessions(): GetSessionsResponse
     fun getSessionMessages(id: String): SessionMessagesResponse
     fun getUnreadMessages(id: String): SessionMessagesResponse
     fun sendMessage(message: OperatorSentMsgRequest)
@@ -197,13 +197,34 @@ class MessageToOperatorServiceImpl(
     private val fileInfoRepository: FileInfoRepository
 
 ) : MessageToOperatorService {
-    override fun getSessions(): List<SessionResponse> {
-        val waitingSessions = sessionRepository.findAllByStatusAndDeletedFalse(SessionStatusEnum.WAITING)
-        return waitingSessions.map {
+
+    override fun getSessions(): GetSessionsResponse {
+        val userId = getUserId()
+        val botIds: MutableList<Long> = mutableListOf()
+
+        botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE).map {
+            if (it.operatorIds.contains(userId)) botIds.add(it.id!!)
+        }
+
+        val waitingSessions =
+            sessionRepository.findAllByBotIdInAndDeletedFalseAndStatus(botIds, SessionStatusEnum.WAITING)
+        val thisUsersBusySessions = sessionRepository.findAllByOperatorIdAndStatus(userId, SessionStatusEnum.BUSY)
+
+        val busySessionResponse = thisUsersBusySessions.map {
             val count = botMessageRepository.countAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!)
-            val bot = botRepository.findById(it.botId).get()
+            val bot = botRepository.findByIdAndStatusAndDeletedFalse(it.botId, BotStatusEnum.ACTIVE)
+                ?: throw BotNotFoundException()
             SessionResponse.toResponse(it, count, bot)
         }
+
+        val waitingSessionResponse = waitingSessions.map {
+            val count = botMessageRepository.countAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!)
+            val bot = botRepository.findByIdAndStatusAndDeletedFalse(it.botId, BotStatusEnum.ACTIVE)
+                ?: throw BotNotFoundException()
+            SessionResponse.toResponse(it, count, bot)
+        }
+
+        return GetSessionsResponse(busySessionResponse, waitingSessionResponse)
     }
 
     override fun getSessionMessages(id: String): SessionMessagesResponse {
@@ -237,11 +258,11 @@ class MessageToOperatorServiceImpl(
     override fun sendMessage(message: OperatorSentMsgRequest) {
         val sessionHashId = message.sessionId!!
         sessionRepository.findByHashId(sessionHashId)?.let { session ->
-            if(session.operatorId==null){
+            if (session.operatorId == null) {
                 session.operatorId = getUserId()
                 session.status = SessionStatusEnum.BUSY
                 sessionRepository.save(session)
-            } else if(session.operatorId!= getUserId()) throw BusySessionException()
+            } else if (session.operatorId != getUserId()) throw BusySessionException()
             val user = session.user
             val userId = user.id.toString()
             botRepository.findByIdAndDeletedFalse(session.botId)?.let { bot ->
@@ -361,7 +382,7 @@ class MessageToOperatorServiceImpl(
 
     override fun closeSession(sessionHash: String) {
         sessionRepository.findByHashId(sessionHash)?.let {
-            if(it.isClosed()) return
+            if (it.isClosed()) return
             it.status = SessionStatusEnum.CLOSED
             sessionRepository.save(it)
         }
@@ -400,7 +421,7 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
     }
 
     override fun download(hashId: String, response: HttpServletResponse) {
-        val fileDB = fileInfoRepository.findByHashId(hashId)?: throw FileNotFoundException()
+        val fileDB = fileInfoRepository.findByHashId(hashId) ?: throw FileNotFoundException()
         val path: Path = Paths.get(fileDB.path).normalize()
         val file = path.toFile()
         response.contentType = Files.probeContentType(path) ?: "application/octet-stream"
@@ -429,6 +450,10 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
     }
 
     private fun takeFileName(multipartFile: MultipartFile): String {
-        return "${FilenameUtils.removeExtension(multipartFile.originalFilename)}:${Date().time}.${FilenameUtils.getExtension(multipartFile.originalFilename)}"
+        return "${FilenameUtils.removeExtension(multipartFile.originalFilename)}:${Date().time}.${
+            FilenameUtils.getExtension(
+                multipartFile.originalFilename
+            )
+        }"
     }
 }
