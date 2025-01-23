@@ -267,7 +267,19 @@ class MessageToOperatorServiceImpl(
             } ?: throw BotNotFoundException()
         } ?: throw SessionNotFoundException()
     }
-
+    private fun getInputMediaByFileInfo(fileInfo: FileInfo): InputMedia {
+        val filePath = File(fileInfo.path)
+        val fileName = "test-" + fileInfo.name
+        val inputMedia = when (fileInfo.extension) {
+            "gif" -> InputMediaAnimation()
+            "mp4", "mov", "avi" -> InputMediaVideo()
+            "jpg", "jpeg", "png", "webp" -> InputMediaPhoto()
+            "mp3", "m4a", "ogg", "flac", "wav" -> InputMediaAudio()
+            else -> InputMediaDocument()
+        }
+        inputMedia.setMedia(filePath, fileName)
+        return inputMedia
+    }
 }
 
 @Service
@@ -310,18 +322,4 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
     private fun getFilePath(name: String, multipartFile: MultipartFile): Path {
         return Paths.get(path, "${name}.${extractExtension(multipartFile.originalFilename!!)}")
     }
-        private fun getInputMediaByFileInfo(fileInfo: FileInfo): InputMedia {
-        val filePath = File(fileInfo.path)
-        val fileName = "test-" + fileInfo.name
-        val inputMedia = when (fileInfo.extension) {
-            "gif" -> InputMediaAnimation()
-            "mp4", "mov", "avi" -> InputMediaVideo()
-            "jpg", "jpeg", "png", "webp" -> InputMediaPhoto()
-            "mp3", "m4a", "ogg", "flac", "wav" -> InputMediaAudio()
-            else -> InputMediaDocument()
-        }
-        inputMedia.setMedia(filePath, fileName)
-        return inputMedia
-    }
-}
 }
