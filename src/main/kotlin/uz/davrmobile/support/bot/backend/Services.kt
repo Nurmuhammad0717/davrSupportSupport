@@ -1,6 +1,5 @@
 package uz.davrmobile.support.bot.backend
 
-import jdk.jpackage.internal.IOUtils.getFileName
 import org.apache.commons.io.FilenameUtils
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -20,8 +19,6 @@ import org.telegram.telegrambots.meta.api.objects.media.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
 import uz.davrmobile.support.util.getUserId
 import java.io.File
-import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
 import javax.transaction.Transactional
 import kotlin.math.round
 
