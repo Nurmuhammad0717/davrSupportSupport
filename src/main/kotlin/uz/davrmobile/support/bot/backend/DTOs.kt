@@ -3,6 +3,7 @@ package uz.davrmobile.support.bot.backend
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonInclude
 import org.jetbrains.annotations.Nullable
+import org.springframework.data.jpa.domain.AbstractPersistable_.id
 import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
 import uz.davrmobile.support.entity.BaseEntity
 import java.util.*
@@ -73,9 +74,26 @@ data class BotResponse(
     }
 }
 
+data class GetSessionsResponse(
+    val myConnectedSessions: List<SessionResponse>,
+    val waitingSessions: List<SessionResponse>
+)
+
+
+data class UserSessionResponse(
+    val id: Long,
+    val fullName: String,
+){
+    companion object{
+        fun toResponse(user: BotUser): UserSessionResponse{
+            return UserSessionResponse(user.id, user.fullName)
+        }
+    }
+}
+
 data class SessionResponse(
     val id: String,
-    val user: UserResponse,
+    val user: UserSessionResponse,
     val botId: String,
     val status: SessionStatusEnum,
     val newMessagesCount: Int
@@ -83,7 +101,7 @@ data class SessionResponse(
     companion object {
         fun toResponse(session: Session, messageCount: Int, bot: Bot): SessionResponse {
             session.run {
-                return SessionResponse(hashId, UserResponse.toResponse(user), bot.hashId, status!!, messageCount)
+                return SessionResponse(hashId, UserSessionResponse.toResponse(user), bot.hashId, status!!, messageCount)
             }
         }
     }

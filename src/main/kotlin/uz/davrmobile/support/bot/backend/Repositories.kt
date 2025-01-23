@@ -37,6 +37,10 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
 
 interface SessionRepository : BaseRepository<Session> {
 
+    fun findAllByBotIdInAndDeletedFalseAndStatus(botIds:List<Long>,status: SessionStatusEnum): List<Session>
+
+    fun findAllByOperatorIdAndStatus(operatorId: Long,status: SessionStatusEnum): List<Session>
+
     fun findAllByStatusAndDeletedFalse(status: SessionStatusEnum): List<Session>
 
     override fun findByIdAndDeletedFalse(id: Long): Session?
@@ -171,6 +175,7 @@ interface BotRepository : BaseRepository<Bot> {
     fun findByHashId(hashId: String): Bot?
     fun deleteByHashId(id: String)
     fun findByHashIdAndDeletedFalse(id: String): Bot?
+    fun findByIdAndStatusAndDeletedFalse(id:Long,status: BotStatusEnum) : Bot?
 }
 
 interface FileInfoRepository : BaseRepository<FileInfo> {

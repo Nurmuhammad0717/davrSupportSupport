@@ -171,7 +171,7 @@ class SessionServiceImpl(
 }
 
 interface MessageToOperatorService {
-    fun getSessions(): List<SessionResponse>
+    fun getSessions(): GetSessionsResponse
     fun getSessionMessages(id: String): SessionMessagesResponse
     fun getUnreadMessages(id: String): SessionMessagesResponse
     fun sendMessage(message: OperatorSentMsgRequest)
@@ -186,13 +186,34 @@ class MessageToOperatorServiceImpl(
     private val fileInfoRepository: FileInfoRepository
 
 ) : MessageToOperatorService {
-    override fun getSessions(): List<SessionResponse> {
-        val waitingSessions = sessionRepository.findAllByStatusAndDeletedFalse(SessionStatusEnum.WAITING)
-        return waitingSessions.map {
+
+    override fun getSessions(): GetSessionsResponse {
+        val userId = getUserId()
+        val botIds: MutableList<Long> = mutableListOf()
+
+        botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE).map {
+            if (it.operatorIds.contains(userId)) botIds.add(it.id!!)
+        }
+
+        val waitingSessions =
+            sessionRepository.findAllByBotIdInAndDeletedFalseAndStatus(botIds, SessionStatusEnum.WAITING)
+        val thisUsersBusySessions = sessionRepository.findAllByOperatorIdAndStatus(userId, SessionStatusEnum.BUSY)
+
+        val busySessionResponse = thisUsersBusySessions.map {
             val count = botMessageRepository.countAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!)
-            val bot = botRepository.findById(it.botId).get()
+            val bot = botRepository.findByIdAndStatusAndDeletedFalse(it.botId, BotStatusEnum.ACTIVE)
+                ?: throw BotNotFoundException()
             SessionResponse.toResponse(it, count, bot)
         }
+
+        val waitingSessionResponse = waitingSessions.map {
+            val count = botMessageRepository.countAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!)
+            val bot = botRepository.findByIdAndStatusAndDeletedFalse(it.botId, BotStatusEnum.ACTIVE)
+                ?: throw BotNotFoundException()
+            SessionResponse.toResponse(it, count, bot)
+        }
+
+        return GetSessionsResponse(busySessionResponse, waitingSessionResponse)
     }
 
     override fun getSessionMessages(id: String): SessionMessagesResponse {
