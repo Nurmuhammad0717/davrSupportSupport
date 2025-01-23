@@ -196,7 +196,7 @@ data class FileInfoResponse(
     var name: String,
     val extension: String,
     val size: Long,
-    val hashId: String
+    val fileId: String
 ) {
     companion object {
         fun toResponse(fileInfo: FileInfo): FileInfoResponse {

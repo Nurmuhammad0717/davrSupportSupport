@@ -1,14 +1,10 @@
 package uz.davrmobile.support.bot.backend
 
-import org.springframework.context.support.ResourceBundleMessageSource
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
-import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.multipart.MultipartFile
 import uz.davrmobile.support.bot.bot.BotService
-import uz.davrmobile.support.usecase.SendMessageUseCase
 import uz.davrmobile.support.util.IsModerator
 import uz.davrmobile.support.util.IsUser
 
@@ -180,8 +176,11 @@ class OperatorController(
 
     @IsModerator
     @PostMapping("/send-msg")
-    fun sendMessage(@RequestBody message: OperatorSentMsgRequest) =
-        messageToOperatorService.sendMessage(message)
+    fun sendMessage(@RequestBody message: OperatorSentMsgRequest) = messageToOperatorService.sendMessage(message)
+
+    @IsModerator
+    @PostMapping("/end-session/{sessionId}")
+    fun closeSession(@PathVariable sessionId: String) = messageToOperatorService.closeSession(sessionId)
 }
 
 @RestController

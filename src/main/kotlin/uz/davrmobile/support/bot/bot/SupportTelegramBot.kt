@@ -89,14 +89,9 @@ open class SupportTelegramBot(
         val message = update.message
 
         getUser(message.from).let { user ->
-            sendActionTyping(user)
-
             if (user.isUser()) {
                 handleUserMessage(update, user)
             }
-//            else if (user.isOperator()) {
-//                handleOperatorMessage(update, user)
-//            }
         }
     }
 
@@ -107,10 +102,12 @@ open class SupportTelegramBot(
 
         when (user.state) {
             UserStateEnum.NEW_USER -> {
+                sendActionTyping(user)
                 handleStartCommand(user)
             }
 
             UserStateEnum.SEND_PHONE_NUMBER -> {
+                sendActionTyping(user)
                 if (message.hasContact()) {
                     val contact = message.contact
                     val phoneNumber = contact.phoneNumber.clearPhone()
@@ -127,6 +124,7 @@ open class SupportTelegramBot(
             }
 
             UserStateEnum.SEND_FULL_NAME -> {
+                sendActionTyping(user)
                 if (message.hasText()) {
                     val text = message.text
                     updateUserFullName(user, text)
@@ -137,6 +135,7 @@ open class SupportTelegramBot(
             }
 
             UserStateEnum.CHOOSE_LANG -> {
+                sendActionTyping(user)
                 sendChooseLangMsg(user)
             }
 
@@ -145,6 +144,7 @@ open class SupportTelegramBot(
             }
 
             UserStateEnum.ACTIVE_USER -> {
+                sendActionTyping(user)
                 if (message.hasText()) {
                     val text = message.text
                     when (getMsgKeyByValue(text, user)) {
@@ -160,6 +160,7 @@ open class SupportTelegramBot(
             }
 
             UserStateEnum.ASK_YOUR_QUESTION -> {
+                sendActionTyping(user)
                 user.state = UserStateEnum.WAITING_OPERATOR
                 userRepository.save(user)
                 handleSessionMsgForUser(update, user)
@@ -174,7 +175,7 @@ open class SupportTelegramBot(
     @Transactional
     open fun checkAndHandleUserSession(user: BotUser, update: Update) {
         sessionRepository.findLastSessionByUserId(user.id)?.let { session ->
-            if (session.isBusy() && session.botId != botId) {
+            if ((session.isBusy() || session.isWaiting()) && session.botId != botId) {
                 findBotById(session.botId)?.let { bot ->
                     this.execute(
                         SendMessage(

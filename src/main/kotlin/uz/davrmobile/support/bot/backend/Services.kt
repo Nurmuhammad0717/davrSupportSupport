@@ -232,23 +232,27 @@ class MessageToOperatorServiceImpl(
     override fun sendMessage(message: OperatorSentMsgRequest) {
         val sessionHashId = message.sessionId!!
         sessionRepository.findByHashId(sessionHashId)?.let { session ->
-            if(session.operatorId==null){
+            if (session.operatorId == null) {
                 session.operatorId = getUserId()
                 session.status = SessionStatusEnum.BUSY
                 sessionRepository.save(session)
-            } else if(session.isBusy()) throw BusySessionException()
+            } else if (session.operatorId != getUserId()) throw BusySessionException()
             val user = session.user
             val userId = user.id.toString()
             botRepository.findByIdAndDeletedFalse(session.botId)?.let { bot ->
                 SupportTelegramBot.findBotById(bot.id!!)?.let { absSender ->
                     when (message.type!!) {
                         BotMessageType.TEXT -> {
-                            message.text?.let {
-                                absSender.execute(SendMessage(userId, it))
+                            message.text?.let { text ->
+                                val sendMessage = SendMessage(userId, text)
+                                message.replyMessageId?.let { replyId ->
+                                    sendMessage.replyToMessageId = replyId
+                                }
+                                absSender.execute(sendMessage)
                             } ?: throw BadCredentialsException()
                         }
 
-                        BotMessageType.VIDEO, BotMessageType.PHOTO, BotMessageType.VOICE, BotMessageType.AUDIO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION -> {
+                        BotMessageType.VIDEO, BotMessageType.PHOTO, BotMessageType.VOICE, BotMessageType.AUDIO, BotMessageType.DOCUMENT -> {
                             message.fileId?.let { fileHashIds ->
                                 val inputMediaList: MutableList<InputMedia> = mutableListOf()
                                 for (fileHashId in fileHashIds) {
@@ -257,6 +261,20 @@ class MessageToOperatorServiceImpl(
                                 }
                                 sendMediaGroup(userId, inputMediaList, absSender, message.caption)
                             } ?: throw BadCredentialsException()
+                        }
+
+                        BotMessageType.ANIMATION -> {
+                            message.fileId?.let { fileHashIds ->
+                                for (fileHashId in fileHashIds) {
+                                    val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
+                                    val send = SendAnimation()
+                                    send.chatId = userId
+                                    send.animation =
+                                        InputFile(File(Paths.get(fileInfo.path).toAbsolutePath().toString()))
+                                    send.caption = message.caption
+                                    absSender.execute(send)
+                                }
+                            }
                         }
 
                         BotMessageType.LOCATION -> {
@@ -284,8 +302,23 @@ class MessageToOperatorServiceImpl(
     private fun sendMediaGroup(
         userId: String, inputMediaList: MutableList<InputMedia>, absSender: SupportTelegramBot, caption: String?
     ) {
-        if (inputMediaList.size == 1) {
-            val media = inputMediaList[0]
+        var isDocument = false
+        for (inputMedia in inputMediaList)
+            if (inputMedia is InputMediaDocument)
+                isDocument = true
+        var inputMediaListTemp: MutableList<InputMedia> = mutableListOf()
+        if (isDocument) {
+            for ((index, inputMedia) in inputMediaList.withIndex()) {
+                val send = InputMediaDocument()
+                send.setMedia(inputMedia.newMediaFile, inputMedia.mediaName)
+                if (inputMediaList.size - 1 == index)
+                    send.caption = caption
+                inputMediaListTemp.add(send)
+            }
+        } else inputMediaListTemp = inputMediaList
+
+        if (inputMediaListTemp.size == 1) {
+            val media = inputMediaListTemp[0]
             val inputFile = InputFile().setMedia(File(media.media))
 
             when (media) {
@@ -329,12 +362,12 @@ class MessageToOperatorServiceImpl(
                     absSender.execute(send)
                 }
             }
-        } else if (inputMediaList.size > 10) {
-            inputMediaList.chunked(10).map { inputMedia ->
+        } else if (inputMediaListTemp.size > 10) {
+            inputMediaListTemp.chunked(10).map { inputMedia ->
                 sendMediaGroup(userId, inputMedia.toMutableList(), absSender, caption)
             }
         } else {
-            absSender.execute(SendMediaGroup(userId, inputMediaList))
+            absSender.execute(SendMediaGroup(userId, inputMediaListTemp))
         }
     }
 
@@ -343,20 +376,20 @@ class MessageToOperatorServiceImpl(
         val fileName = fileInfo.name
         val extension = fileInfo.extension.lowercase()
         val inputMedia = when (extension) {
-            "gif" -> InputMediaAnimation().apply { }
+            "gif" -> InputMediaAnimation()
             "mp4", "mov", "avi" -> InputMediaVideo()
             "jpg", "jpeg", "png", "webp" -> InputMediaPhoto()
             "mp3", "m4a", "ogg", "flac", "wav" -> InputMediaAudio()
             else -> InputMediaDocument()
         }
-        inputMedia.setMedia(filePath.inputStream(), filePath.toString().substringBeforeLast("/"))
+        inputMedia.setMedia(filePath, fileName)
         inputMedia.caption = caption
         return inputMedia
     }
 
     override fun closeSession(sessionHash: String) {
         sessionRepository.findByHashId(sessionHash)?.let {
-            if(it.isClosed()) return
+            if (it.isClosed()) return
             it.status = SessionStatusEnum.CLOSED
             sessionRepository.save(it)
         }
@@ -399,6 +432,10 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
     }
 
     private fun takeFileName(multipartFile: MultipartFile): String {
-        return "${FilenameUtils.removeExtension(multipartFile.originalFilename)}:${Date().time}.${FilenameUtils.getExtension(multipartFile.originalFilename)}"
+        return "${FilenameUtils.removeExtension(multipartFile.originalFilename)}-${Date().time}.${
+            FilenameUtils.getExtension(
+                multipartFile.originalFilename
+            )
+        }"
     }
 }

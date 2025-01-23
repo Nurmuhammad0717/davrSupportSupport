@@ -77,6 +77,10 @@ class Session(
     fun isBusy(): Boolean {
         return status == SessionStatusEnum.BUSY
     }
+
+    fun isWaiting(): Boolean {
+        return status == SessionStatusEnum.WAITING
+    }
 }
 
 @Entity(name = "location")
@@ -111,10 +115,10 @@ class BotMessage(
     @ManyToOne @JoinColumn(name = "session_id") val session: Session,
     @Column(nullable = false) val messageId: Int,
     @Column(nullable = true) val replyMessageId: Int? = null,
-    @Column(nullable = true) var text: String? = null,
-    @Column(nullable = true) var originalText: String? = null,
-    @Column(nullable = true) var caption: String? = null,
-    @Column(nullable = true) var originalCaption: String? = null,
+    @Column(nullable = true, columnDefinition = "TEXT") var text: String? = null,
+    @Column(nullable = true, columnDefinition = "TEXT") var originalText: String? = null,
+    @Column(nullable = true, columnDefinition = "TEXT") var caption: String? = null,
+    @Column(nullable = true, columnDefinition = "TEXT") var originalCaption: String? = null,
     @Enumerated(value = EnumType.STRING) val botMessageType: BotMessageType,
     @OneToOne @JoinColumn(nullable = true) val file: FileInfo? = null,
     @OneToOne @JoinColumn(nullable = true) val location: Location? = null,
