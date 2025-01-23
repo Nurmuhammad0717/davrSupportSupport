@@ -38,6 +38,7 @@ class ResourceServerConfig : ResourceServerConfigurerAdapter() {
 
                 "/bot/**",
                 "/operator/**",
+                "/bot-fileinfo/**",
             )?.permitAll()
             ?.antMatchers("/**")?.authenticated()
             ?.and()

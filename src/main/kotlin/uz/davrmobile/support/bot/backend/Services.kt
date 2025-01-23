@@ -177,7 +177,6 @@ interface MessageToOperatorService {
 
 @Service
 class MessageToOperatorServiceImpl(
-    private val userService: UserService,
     private val sessionRepository: SessionRepository,
     private val botMessageRepository: BotMessageRepository,
     private val botRepository: BotRepository,
@@ -195,7 +194,7 @@ class MessageToOperatorServiceImpl(
 
     override fun getSessionMessages(id: String): SessionMessagesResponse {
         sessionRepository.findByHashId(id)?.let { session ->
-            val messages = botMessageRepository.findAllByHashIdAndDeletedFalse(id)
+            val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(session.id!!)
             return SessionMessagesResponse(
                 session.hashId,
                 UserResponse.toResponse(session.user),
@@ -207,7 +206,7 @@ class MessageToOperatorServiceImpl(
     @Transactional
     override fun getUnreadMessages(id: String): SessionMessagesResponse {
         sessionRepository.findByHashId(id)?.let { session ->
-            val unreadMessages = botMessageRepository.findAllByHashIdAndHasReadFalseAndDeletedFalse(id)
+            val unreadMessages = botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(session.id!!)
             for (unreadMessage in unreadMessages) {
                 unreadMessage.hasRead = true
             }
@@ -222,13 +221,13 @@ class MessageToOperatorServiceImpl(
 
     @Transactional
     override fun sendMessage(message: OperatorSentMsgRequest) {
-        val sessionHashId = message.sessionId
+        val sessionHashId = message.sessionId!!
         sessionRepository.findByHashId(sessionHashId)?.let { session ->
             val user = session.user
             val userId = user.id.toString()
             botRepository.findByIdAndDeletedFalse(session.botId)?.let { bot ->
                 SupportTelegramBot.findBotById(bot.id!!)?.let { absSender ->
-                    when (message.type) {
+                    when (message.type!!) {
                         BotMessageType.TEXT -> {
                             message.text?.let {
                                 absSender.execute(SendMessage(userId, it))
@@ -286,7 +285,7 @@ class MessageToOperatorServiceImpl(
 @Service
 class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : FileInfoService {
 
-    val path: String = "file/${LocalDate.now()}"
+    val path: String = "files/${LocalDate.now()}"
 
     override fun upload(multipartFile: MultipartFile) {
         val name = UUID.randomUUID().toString()

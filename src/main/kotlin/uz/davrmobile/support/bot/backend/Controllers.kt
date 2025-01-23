@@ -13,14 +13,14 @@ import uz.davrmobile.support.util.IsModerator
 import uz.davrmobile.support.util.IsUser
 
 
-@ControllerAdvice
-class ExceptionHandler(private val errorMessageSource: ResourceBundleMessageSource) {
-
-    @ExceptionHandler(DBusinessException::class)
-    fun handleAccountException(exception: DBusinessException): ResponseEntity<BaseMessage> {
-        return ResponseEntity.badRequest().body(exception.getErrorMessage(errorMessageSource))
-    }
-}
+//@ControllerAdvice
+//class ExceptionHandler(private val errorMessageSource: ResourceBundleMessageSource) {
+//
+//    @ExceptionHandler(DBusinessException::class)
+//    fun handleAccountException(exception: DBusinessException): ResponseEntity<BaseMessage> {
+//        return ResponseEntity.badRequest().body(exception.getErrorMessage(errorMessageSource))
+//    }
+//}
 
 @RestController
 @RequestMapping("/bot")
@@ -189,7 +189,7 @@ class OperatorController(
 
     @IsModerator
     @PostMapping("/send-msg")
-    fun sendMessage(message: OperatorSentMsgRequest) =
+    fun sendMessage(@RequestBody message: OperatorSentMsgRequest) =
         messageToOperatorService.sendMessage(message)
 }
 
@@ -197,7 +197,7 @@ class OperatorController(
 @RequestMapping("bot-fileinfo")
 class FileInfoController(
     private val fileInfoService: FileInfoService
-){
+) {
     @PostMapping("upload")
     fun upload(@RequestParam("file") multipartFile: MultipartFile) = fileInfoService.upload(multipartFile)
 }
