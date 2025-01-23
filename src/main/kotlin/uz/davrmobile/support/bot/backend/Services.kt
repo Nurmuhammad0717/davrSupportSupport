@@ -195,7 +195,7 @@ class MessageToOperatorServiceImpl(
 
     override fun getSessionMessages(id: String): SessionMessagesResponse {
         sessionRepository.findByHashId(id)?.let { session ->
-            val messages = botMessageRepository.findAllByHashIdAndDeletedFalse(id)
+            val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(session.id!!)
             return SessionMessagesResponse(
                 session.hashId,
                 UserResponse.toResponse(session.user),
