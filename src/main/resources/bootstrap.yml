@@ -3,14 +3,14 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/postgres
+    url: jdbc:postgresql://localhost:5432/davr_support_test
     username: postgres
     password: Sobirov0717
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: create
+    show-sql: false
     properties:
       hibernate.format_sql: true
   servlet:

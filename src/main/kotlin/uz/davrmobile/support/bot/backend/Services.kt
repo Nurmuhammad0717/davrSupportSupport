@@ -236,7 +236,7 @@ class MessageToOperatorServiceImpl(
                 session.operatorId = getUserId()
                 session.status = SessionStatusEnum.BUSY
                 sessionRepository.save(session)
-            } else if(session.isBusy()) throw BusySessionException()
+            } else if(session.operatorId!= getUserId()) throw BusySessionException()
             val user = session.user
             val userId = user.id.toString()
             botRepository.findByIdAndDeletedFalse(session.botId)?.let { bot ->
