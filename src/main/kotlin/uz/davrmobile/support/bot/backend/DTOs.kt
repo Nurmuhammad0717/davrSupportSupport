@@ -191,18 +191,16 @@ data class DiceResponse(
     }
 }
 
-
-data class FileInfoResponse(
-    var name: String,
+data class  FileInfoResponse(
+    val id: Long,
+    val name: String,
+    val hashId: String,
     val extension: String,
     val size: Long,
-    val hashId: String
+    val path: String
 ) {
     companion object {
-        fun toResponse(fileInfo: FileInfo): FileInfoResponse {
-            fileInfo.run {
-                return FileInfoResponse(name, extension, size, hashId)
-            }
-        }
+        fun toResponse(file: FileInfo): FileInfoResponse = FileInfoResponse(
+            file.id!!, file.name, file.hashId, file.extension, file.size, file.path)
     }
 }

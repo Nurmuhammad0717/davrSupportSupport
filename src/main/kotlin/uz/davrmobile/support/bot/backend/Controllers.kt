@@ -11,6 +11,7 @@ import uz.davrmobile.support.bot.bot.BotService
 import uz.davrmobile.support.usecase.SendMessageUseCase
 import uz.davrmobile.support.util.IsModerator
 import uz.davrmobile.support.util.IsUser
+import javax.servlet.http.HttpServletResponse
 
 
 @RestController
@@ -191,4 +192,8 @@ class FileInfoController(
 ) {
     @PostMapping("upload")
     fun upload(@RequestParam("file") multipartFile: MutableList<MultipartFile>) = fileInfoService.upload(multipartFile)
+
+    @GetMapping("download/{hash-id}")
+    fun download(@PathVariable("hash-id") hashId: String, response: HttpServletResponse) = fileInfoService.download(hashId, response)
+
 }
