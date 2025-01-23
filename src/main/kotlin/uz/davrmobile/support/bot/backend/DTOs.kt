@@ -91,7 +91,7 @@ data class SessionMessagesResponse(
     val messages: List<BotMessageResponse>
 )
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
+//@JsonInclude(JsonInclude.Include.NON_NULL) this request contains null fields
 data class BotMessageResponse(
     val id: String,
     val messageId: Int,
