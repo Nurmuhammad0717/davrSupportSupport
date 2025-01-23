@@ -379,6 +379,7 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
             val name = takeFileName(multipartFile)
             val fileInfo = FileInfo(
                 name = name,
+                uploadName = multipartFile.originalFilename!!,
                 extension = FilenameUtils.getExtension(multipartFile.originalFilename),
                 path = getFilePath(name).toString(),
                 size = multipartFile.size
