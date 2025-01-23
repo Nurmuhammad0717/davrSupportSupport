@@ -1,5 +1,6 @@
 package uz.davrmobile.support.bot.backend
 
+import org.apache.commons.io.FilenameUtils
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -22,9 +23,8 @@ import org.telegram.telegrambots.meta.api.methods.send.SendVideo
 import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.meta.api.objects.media.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
-import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
+import uz.davrmobile.support.util.getUserId
 import java.io.File
-import java.io.InputStream
 import javax.transaction.Transactional
 import kotlin.math.round
 
@@ -181,6 +181,7 @@ interface MessageToOperatorService {
     fun getSessionMessages(id: String): SessionMessagesResponse
     fun getUnreadMessages(id: String): SessionMessagesResponse
     fun sendMessage(message: OperatorSentMsgRequest)
+    fun closeSession(sessionHash: String)
 }
 
 @Service
@@ -231,6 +232,11 @@ class MessageToOperatorServiceImpl(
     override fun sendMessage(message: OperatorSentMsgRequest) {
         val sessionHashId = message.sessionId!!
         sessionRepository.findByHashId(sessionHashId)?.let { session ->
+            if(session.operatorId==null){
+                session.operatorId = getUserId()
+                session.status = SessionStatusEnum.BUSY
+                sessionRepository.save(session)
+            } else if(session.isBusy()) throw BusySessionException()
             val user = session.user
             val userId = user.id.toString()
             botRepository.findByIdAndDeletedFalse(session.botId)?.let { bot ->
@@ -347,23 +353,30 @@ class MessageToOperatorServiceImpl(
         inputMedia.caption = caption
         return inputMedia
     }
+
+    override fun closeSession(sessionHash: String) {
+        sessionRepository.findByHashId(sessionHash)?.let {
+            if(it.isClosed()) return
+            it.status = SessionStatusEnum.CLOSED
+            sessionRepository.save(it)
+        }
+    }
 }
 
 @Service
 class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : FileInfoService {
 
-    val path: String = "files/${LocalDate.now()}"
+    private val path: String = "files/${LocalDate.now()}"
 
     override fun upload(multipartFileList: MutableList<MultipartFile>): List<FileInfoResponse> {
         val responseFiles: MutableList<FileInfoResponse> = mutableListOf()
         multipartFileList.forEach { multipartFile ->
-            val name = randomHashId()
+            val name = takeFileName(multipartFile)
             val fileInfo = FileInfo(
-                name = multipartFile.name,
-                extension = extractExtension(multipartFile.originalFilename!!),
-                path = getFilePath(name, multipartFile).toString(),
-                size = multipartFile.size,
-                hashId = name
+                name = name,
+                extension = FilenameUtils.getExtension(multipartFile.originalFilename),
+                path = getFilePath(name).toString(),
+                size = multipartFile.size
             )
             val savedFileInfo = fileInfoRepository.save(fileInfo)
 
@@ -381,11 +394,11 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
         return responseFiles
     }
 
-    private fun extractExtension(name: String): String {
-        return name.substringAfterLast(".")
+    private fun getFilePath(name: String): Path {
+        return Paths.get(path, name)
     }
 
-    private fun getFilePath(name: String, multipartFile: MultipartFile): Path {
-        return Paths.get(path, "${name}.${extractExtension(multipartFile.originalFilename!!)}")
+    private fun takeFileName(multipartFile: MultipartFile): String {
+        return "${FilenameUtils.removeExtension(multipartFile.originalFilename)}:${Date().time}.${FilenameUtils.getExtension(multipartFile.originalFilename)}"
     }
 }

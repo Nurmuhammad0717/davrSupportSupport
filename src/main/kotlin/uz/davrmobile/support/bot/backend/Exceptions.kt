@@ -71,3 +71,7 @@ class MessageNotFoundException : DBusinessException() {
 class BotNotFoundException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.BOT_NOT_FOUND
 }
+
+class BusySessionException : DBusinessException() {
+    override fun errorCode(): ErrorCode = ErrorCode.BUSY_SESSION
+}
