@@ -36,19 +36,6 @@ interface UserService {
     fun getUserById(id: Long): UserResponse
 }
 
-interface SessionService {
-    fun getAllSession(pageable: Pageable): Page<SessionInfo>
-    fun getOne(id: Long): SessionInfo
-    fun getAllSessionUserDateRange(userId: Long, dto: DateRangeRequest, pageable: Pageable): Page<SessionInfo>
-    fun getAllSessionOperatorDateRange(operatorId: Long, dto: DateRangeRequest, pageable: Pageable): Page<SessionInfo>
-    fun getSessionsByStatus(status: SessionStatusEnum, pageable: Pageable): Page<SessionInfo>
-    fun getHighRateOperator(pageable: Pageable): Page<RateInfo>
-    fun getLowRateOperator(pageable: Pageable): Page<RateInfo>
-    fun getHighRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo>
-    fun getLowRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo>
-    fun getOperatorRate(operatorId: Long, pageable: Pageable): Page<RateInfo>
-}
-
 interface FileInfoService {
     fun download(hashId: String, response: HttpServletResponse)
     fun find(hashId: String): FileInfoResponse
@@ -78,95 +65,6 @@ class UserServiceImpl(
         userRepository.findByIdAndDeletedFalse(id)?.let {
             return UserResponse.toResponse(it)
         } ?: throw UserNotFoundException()
-    }
-}
-
-@Service
-class SessionServiceImpl(
-    private val sessionRepository: SessionRepository,
-) : SessionService {
-
-    override fun getAllSession(pageable: Pageable): Page<SessionInfo> {
-        return toSessionInfo(sessionRepository.findAll(pageable))
-    }
-
-    override fun getOne(id: Long): SessionInfo {
-        val session = sessionRepository.findById(id).orElseThrow { SessionNotFoundException() }
-        return toSessionInfo(session)
-    }
-
-    override fun getAllSessionUserDateRange(
-        userId: Long, dto: DateRangeRequest, pageable: Pageable
-    ): Page<SessionInfo> {
-        return toSessionInfo(
-            sessionRepository.findAllSessionsByUserAndDateRange(
-                userId, dto.fromDate, dto.toDate, pageable
-            )
-        )
-    }
-
-    override fun getAllSessionOperatorDateRange(
-        operatorId: Long, dto: DateRangeRequest, pageable: Pageable
-    ): Page<SessionInfo> {
-        return toSessionInfo(
-            sessionRepository.findAllSessionsByOperatorAndDateRange(
-                operatorId, dto.fromDate, dto.toDate, pageable
-            )
-        )
-    }
-
-    override fun getSessionsByStatus(status: SessionStatusEnum, pageable: Pageable): Page<SessionInfo> {
-        return toSessionInfo(sessionRepository.getSessionByStatus(status, pageable))
-    }
-
-    override fun getHighRateOperator(pageable: Pageable): Page<RateInfo> {
-        return toRateInfo(sessionRepository.findHighestRatedOperators(pageable))
-    }
-
-    override fun getLowRateOperator(pageable: Pageable): Page<RateInfo> {
-        return toRateInfo(sessionRepository.findLowestRatedOperators(pageable))
-    }
-
-    override fun getHighRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo> {
-        return toRateInfo(sessionRepository.findHighestRatedOperatorsByDateRange(dto.fromDate, dto.toDate, pageable))
-    }
-
-    override fun getLowRateOperatorDateRange(dto: DateRangeRequest, pageable: Pageable): Page<RateInfo> {
-        return toRateInfo(sessionRepository.findLowestRatedOperatorsByDateRange(dto.fromDate, dto.toDate, pageable))
-
-    }
-
-    override fun getOperatorRate(operatorId: Long, pageable: Pageable): Page<RateInfo> {
-        return toRateInfo(sessionRepository.findOperatorRates(operatorId, pageable))
-    }
-
-    private fun toSessionInfo(sessions: Page<Session>): Page<SessionInfo> {
-        return sessions.map { session ->
-            SessionInfo(
-                user = UserResponse.toResponse(session.user),
-                status = session.status!!,
-                operatorId = session.operatorId,
-                rate = session.rate
-            )
-        }
-    }
-
-    private fun toSessionInfo(session: Session): SessionInfo {
-        return SessionInfo(
-            user = UserResponse.toResponse(session.user),
-            status = session.status!!,
-            operatorId = session.operatorId,
-            rate = session.rate
-        )
-    }
-
-    private fun toRateInfo(results: Page<Array<Any>>): Page<RateInfo> {
-        return results.map { result ->
-            val operator = result[0] as BotUser
-            val totalRate = result[1] as Number
-            val roundedRate = round(totalRate.toDouble() * 100) / 100
-            RateInfo(rate = roundedRate, operator = UserResponse.toResponse(operator))
-        }
     }
 }
 

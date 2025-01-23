@@ -1,11 +1,9 @@
 package uz.davrmobile.support.bot.backend
 
-import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import uz.davrmobile.support.bot.bot.BotService
-import uz.davrmobile.support.util.IsAdmin
 import uz.davrmobile.support.util.IsModerator
 import uz.davrmobile.support.util.IsUser
 import javax.servlet.http.HttpServletResponse
@@ -44,29 +42,12 @@ class BotController(private val botService: BotService) {
     fun getAllActiveBots() = botService.getAllActiveBots()
 
     @IsModerator
-    @PostMapping("add-bot/{id}")
+        @PostMapping("add-bot/{id}")
     fun addBot(@PathVariable id: String) = botService.addBotToOperator(id)
 
     @IsModerator
     @PostMapping("remove-bot/{id}")
     fun removeBot(@PathVariable id: String) = botService.removeBotFromOperator(id)
-}
-
-@RestController
-@RequestMapping("sessions")
-class SessionController(private val sessionService: SessionService) {
-
-    @IsModerator
-    @GetMapping
-    fun getAllSessions(pageable: Pageable): Page<SessionInfo> {
-        return sessionService.getAllSession(pageable)
-    }
-
-    @IsModerator
-    @GetMapping("{id}")
-    fun getOne(@PathVariable id: Long): SessionInfo {
-        return sessionService.getOne(id)
-    }
 }
 
 @RestController
