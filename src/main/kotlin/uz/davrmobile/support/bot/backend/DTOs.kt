@@ -3,8 +3,11 @@ package uz.davrmobile.support.bot.backend
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonInclude
 import org.jetbrains.annotations.Nullable
-import org.springframework.data.jpa.domain.AbstractPersistable_.id
+import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
+import uz.davrmobile.support.entity.BaseEntity
 import java.util.*
+import javax.persistence.Column
+import javax.persistence.Entity
 
 data class BaseMessage(val code: Int, val message: String?)
 
