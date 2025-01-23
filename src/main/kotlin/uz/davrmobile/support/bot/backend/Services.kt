@@ -1,5 +1,7 @@
 package uz.davrmobile.support.bot.backend
 
+import jdk.jpackage.internal.IOUtils.getFileName
+import org.apache.commons.io.FilenameUtils
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -18,6 +20,8 @@ import org.telegram.telegrambots.meta.api.objects.media.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
 import uz.davrmobile.support.util.getUserId
 import java.io.File
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import javax.transaction.Transactional
 import kotlin.math.round
 
@@ -300,19 +304,19 @@ class MessageToOperatorServiceImpl(
 @Service
 class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : FileInfoService{
 
-    val path: String = "files/${LocalDate.now()}"
+    private val path: String = "file/${LocalDate.now()}"
 
     override fun upload(multipartFileList: MutableList<MultipartFile>) {
         multipartFileList.forEach { multipartFile ->
-            val name = UUID.randomUUID().toString()
+            val name = takeFileName(multipartFile)
             val fileInfo = FileInfo(
-                name = multipartFile.name,
-                extension = extractExtension(multipartFile.originalFilename!!),
-                path = getFilePath(name, multipartFile).toString(),
-                size = multipartFile.size,
-                hashId = name
+                name = name,
+                extension = FilenameUtils.getExtension(multipartFile.originalFilename),
+                path = getFilePath(name).toString(),
+                size = multipartFile.size
             )
             fileInfoRepository.save(fileInfo)
+
 
             val filePath = Paths.get(fileInfo.path)
             filePath.parent?.let { directoryPath ->
@@ -326,15 +330,11 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
         }
     }
 
-    private fun extractExtension(name: String): String {
-        name.let {
-            val dotIndex = name.lastIndexOf('.')
-            if (dotIndex >= 0) return it.substring(dotIndex + 1)
-        }
-        return ""
+    private fun getFilePath(name: String): Path {
+        return Paths.get(path, name)
     }
 
-    private fun getFilePath(name: String, multipartFile: MultipartFile): Path {
-        return Paths.get(path, "${name}.${extractExtension(multipartFile.originalFilename!!)}")
+    private fun takeFileName(multipartFile: MultipartFile): String {
+        return "${FilenameUtils.removeExtension(multipartFile.originalFilename)}:${Date().time}.${FilenameUtils.getExtension(multipartFile.originalFilename)}"
     }
 }
