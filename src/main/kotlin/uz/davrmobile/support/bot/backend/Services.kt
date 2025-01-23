@@ -8,12 +8,16 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
-import uz.davrmobile.support.util.getUserId
 import java.time.LocalDate
 import java.util.*
+import org.telegram.telegrambots.meta.api.methods.send.SendContact
+import org.telegram.telegrambots.meta.api.methods.send.SendLocation
+import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage
+import org.telegram.telegrambots.meta.api.objects.media.*
+import uz.davrmobile.support.bot.bot.SupportTelegramBot
+import java.io.File
 import javax.transaction.Transactional
-import javax.ws.rs.NotAuthorizedException
-import kotlin.io.AccessDeniedException
 import kotlin.math.round
 
 interface UserService {
@@ -76,8 +80,7 @@ class SessionServiceImpl(
     }
 
     override fun getOne(id: Long): SessionInfo {
-        val session = sessionRepository.findById(id)
-            .orElseThrow { SessionNotFoundExistException() }
+        val session = sessionRepository.findById(id).orElseThrow { SessionNotFoundException() }
         return toSessionInfo(session)
     }
 
@@ -91,31 +94,21 @@ class SessionServiceImpl(
     }
 
     override fun getAllSessionUserDateRange(
-        userId: Long,
-        dto: DateRangeRequest,
-        pageable: Pageable
+        userId: Long, dto: DateRangeRequest, pageable: Pageable
     ): Page<SessionInfo> {
         return toSessionInfo(
             sessionRepository.findAllSessionsByUserAndDateRange(
-                userId,
-                dto.fromDate,
-                dto.toDate,
-                pageable
+                userId, dto.fromDate, dto.toDate, pageable
             )
         )
     }
 
     override fun getAllSessionOperatorDateRange(
-        operatorId: Long,
-        dto: DateRangeRequest,
-        pageable: Pageable
+        operatorId: Long, dto: DateRangeRequest, pageable: Pageable
     ): Page<SessionInfo> {
         return toSessionInfo(
             sessionRepository.findAllSessionsByOperatorAndDateRange(
-                operatorId,
-                dto.fromDate,
-                dto.toDate,
-                pageable
+                operatorId, dto.fromDate, dto.toDate, pageable
             )
         )
     }
@@ -176,69 +169,111 @@ class SessionServiceImpl(
 }
 
 interface MessageToOperatorService {
-
     fun getSessions(): List<SessionResponse>
-    fun getSessionMessages(sessionId: Long): SessionMessagesResponse
-    fun getUnreadMessages(sessionId: Long): SessionMessagesResponse
-    fun sendMessage()
+    fun getSessionMessages(id: String): SessionMessagesResponse
+    fun getUnreadMessages(id: String): SessionMessagesResponse
+    fun sendMessage(message: OperatorSentMsgRequest)
 }
 
 @Service
 class MessageToOperatorServiceImpl(
-
     private val userService: UserService,
     private val sessionRepository: SessionRepository,
-    private val botMessageRepository: BotMessageRepository, private val botRepository: BotRepository
+    private val botMessageRepository: BotMessageRepository,
+    private val botRepository: BotRepository,
+    private val fileInfoRepository: FileInfoRepository
 
 ) : MessageToOperatorService {
     override fun getSessions(): List<SessionResponse> {
         val waitingSessions = sessionRepository.findAllByStatusAndDeletedFalse(SessionStatusEnum.WAITING)
         return waitingSessions.map {
-            val count = botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!).count()
-            SessionResponse.toResponse(it, count)
+            val count = botMessageRepository.countAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!)
+            val bot = botRepository.findById(it.botId).get()
+            SessionResponse.toResponse(it, count, bot)
         }
     }
 
-    override fun getSessionMessages(sessionId: Long): SessionMessagesResponse {
-        val sessionOpt = sessionRepository.findById(sessionId)
-        if (sessionOpt.isPresent) {
-            val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(sessionId)
+    override fun getSessionMessages(id: String): SessionMessagesResponse {
+        sessionRepository.findByHashId(id)?.let { session ->
+            val messages = botMessageRepository.findAllByHashIdAndDeletedFalse(id)
             return SessionMessagesResponse(
-                sessionId,
-                UserResponse.toResponse(sessionOpt.get().user),
+                session.hashId,
+                UserResponse.toResponse(session.user),
                 messages.map { BotMessageResponse.toResponse(it) })
         }
-        throw SessionNotFoundExistException()
+        throw SessionNotFoundException()
     }
 
     @Transactional
-    override fun getUnreadMessages(sessionId: Long): SessionMessagesResponse {
-        val sessionOptional = sessionRepository.findById(sessionId)
-        if (sessionOptional.isPresent) {
-            val unreadMessages =
-                botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId)
+    override fun getUnreadMessages(id: String): SessionMessagesResponse {
+        sessionRepository.findByHashId(id)?.let { session ->
+            val unreadMessages = botMessageRepository.findAllByHashIdAndHasReadFalseAndDeletedFalse(id)
             for (unreadMessage in unreadMessages) {
                 unreadMessage.hasRead = true
             }
             botMessageRepository.saveAll(unreadMessages)
             return SessionMessagesResponse(
-                sessionId,
-                UserResponse.toResponse(sessionOptional.get().user),
+                session.hashId,
+                UserResponse.toResponse(session.user),
                 unreadMessages.map { BotMessageResponse.toResponse(it) })
         }
-        throw SessionNotFoundExistException()
+        throw SessionNotFoundException()
     }
 
-    override fun sendMessage() {
-        TODO("Not yet implemented")
+    @Transactional
+    override fun sendMessage(message: OperatorSentMsgRequest) {
+        val sessionHashId = message.sessionId
+        sessionRepository.findByHashId(sessionHashId)?.let { session ->
+            val user = session.user
+            val userId = user.id.toString()
+            botRepository.findByIdAndDeletedFalse(session.botId)?.let { bot ->
+                SupportTelegramBot.findBotById(bot.id!!)?.let { absSender ->
+                    when (message.type) {
+                        BotMessageType.TEXT -> {
+                            message.text?.let {
+                                absSender.execute(SendMessage(userId, it))
+                            } ?: throw BadCredentialsException()
+                        }
+
+                        BotMessageType.VIDEO, BotMessageType.PHOTO, BotMessageType.VOICE, BotMessageType.AUDIO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION -> {
+                            message.fileId?.let { fileHashIds ->
+                                val inputMediaList: MutableList<InputMedia> = mutableListOf()
+                                for (fileHashId in fileHashIds) {
+                                    val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
+                                    inputMediaList.add(getInputMediaByFileInfo(fileInfo))
+                                }
+                                absSender.execute(SendMediaGroup(userId, inputMediaList))
+                            } ?: throw BadCredentialsException()
+                        }
+
+                        BotMessageType.LOCATION -> {
+                            message.location?.let {
+                                absSender.execute(SendLocation(userId, it.latitude, it.longitude))
+                            } ?: throw BadCredentialsException()
+                        }
+
+                        BotMessageType.CONTACT -> {
+                            message.contact?.let {
+                                absSender.execute(SendContact(userId, it.phoneNumber, it.name))
+                            } ?: throw BadCredentialsException()
+                        }
+
+                        BotMessageType.POLL -> {}
+                        BotMessageType.DICE -> {}
+                        BotMessageType.STICKER -> {}
+                        BotMessageType.VIDEO_NOTE -> {}
+                    }
+                } ?: throw BotNotFoundException()
+            } ?: throw BotNotFoundException()
+        } ?: throw SessionNotFoundException()
     }
 
+}
 
-
-}@Service
+@Service
 class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : FileInfoService{
 
-    val path : String  = "file/${LocalDate.now()}"
+    val path: String = "file/${LocalDate.now()}"
 
     override fun upload(multipartFileList: MutableList<MultipartFile>) {
         multipartFileList.forEach { multipartFile ->
@@ -264,15 +299,29 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
         }
     }
 
-    private fun extractExtension(name:String): String {
+    private fun extractExtension(name: String): String {
         name.let {
             val dotIndex = name.lastIndexOf('.')
-            if (dotIndex >= 0)
-                return it.substring(dotIndex + 1)
+            if (dotIndex >= 0) return it.substring(dotIndex + 1)
         }
         return ""
     }
+
     private fun getFilePath(name: String, multipartFile: MultipartFile): Path {
         return Paths.get(path, "${name}.${extractExtension(multipartFile.originalFilename!!)}")
     }
+        private fun getInputMediaByFileInfo(fileInfo: FileInfo): InputMedia {
+        val filePath = File(fileInfo.path)
+        val fileName = "test-" + fileInfo.name
+        val inputMedia = when (fileInfo.extension) {
+            "gif" -> InputMediaAnimation()
+            "mp4", "mov", "avi" -> InputMediaVideo()
+            "jpg", "jpeg", "png", "webp" -> InputMediaPhoto()
+            "mp3", "m4a", "ogg", "flac", "wav" -> InputMediaAudio()
+            else -> InputMediaDocument()
+        }
+        inputMedia.setMedia(filePath, fileName)
+        return inputMedia
+    }
+}
 }

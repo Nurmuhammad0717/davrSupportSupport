@@ -1,18 +1,21 @@
 package uz.davrmobile.support.bot.backend
 
+import org.springframework.context.support.ResourceBundleMessageSource
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.multipart.MultipartFile
 import uz.davrmobile.support.bot.bot.BotService
 import uz.davrmobile.support.usecase.SendMessageUseCase
 import uz.davrmobile.support.util.IsModerator
 import uz.davrmobile.support.util.IsUser
 
+
 @RestController
 @RequestMapping("/bot")
 class BotController(private val botService: BotService) {
-
     @IsModerator
     @PostMapping
     fun create(@RequestBody req: TokenRequest) = botService.createBot(req)
@@ -23,16 +26,27 @@ class BotController(private val botService: BotService) {
 
     @IsModerator
     @GetMapping("{id}")
-    fun getOneBot(@PathVariable id: Long) = botService.getOneBot(id)
+    fun getOneBot(@PathVariable id: String) = botService.getOneBot(id)
 
     @IsModerator
     @DeleteMapping("{id}")
-    fun deleteBot(@PathVariable id: Long) = botService.deleteBot(id)
+    fun deleteBot(@PathVariable id: String) = botService.deleteBot(id)
+
+    @IsModerator
+    @PostMapping("stop/{id}")
+    fun stopBot(@PathVariable id: String) = botService.stopBot(id)
 
     @IsModerator
     @GetMapping("/active-bots")
     fun getAllActiveBots() = botService.getAllActiveBots()
 
+    @IsModerator
+    @PostMapping("add-bot/{id}")
+    fun addBot(@PathVariable id: String) = botService.addBotToOperator(id)
+
+    @IsModerator
+    @PostMapping("remove-bot/{id}")
+    fun removeBot(@PathVariable id: String) = botService.removeBotFromOperator(id)
 }
 
 @RestController
@@ -67,9 +81,7 @@ class SessionController(private val sessionService: SessionService) {
     @IsModerator
     @PostMapping("user/{userId}")
     fun getAllSessionUserDateRange(
-        @PathVariable userId: Long,
-        @RequestBody dto: DateRangeRequest,
-        pageable: Pageable
+        @PathVariable userId: Long, @RequestBody dto: DateRangeRequest, pageable: Pageable
     ): Page<SessionInfo> {
         return sessionService.getAllSessionUserDateRange(userId, dto, pageable)
     }
@@ -77,9 +89,7 @@ class SessionController(private val sessionService: SessionService) {
     @IsModerator
     @PostMapping("operator/{operatorId}")
     fun getAllSessionOperatorDateRange(
-        @PathVariable operatorId: Long,
-        @RequestBody dto: DateRangeRequest,
-        pageable: Pageable
+        @PathVariable operatorId: Long, @RequestBody dto: DateRangeRequest, pageable: Pageable
     ): Page<SessionInfo> {
         return sessionService.getAllSessionOperatorDateRange(operatorId, dto, pageable)
     }
@@ -106,8 +116,7 @@ class SessionController(private val sessionService: SessionService) {
     @IsModerator
     @PostMapping("operators/high-rate")
     fun getHighRateOperatorDateRange(
-        @RequestBody dto: DateRangeRequest,
-        pageable: Pageable
+        @RequestBody dto: DateRangeRequest, pageable: Pageable
     ): Page<RateInfo> {
         return sessionService.getHighRateOperatorDateRange(dto, pageable)
     }
@@ -116,8 +125,7 @@ class SessionController(private val sessionService: SessionService) {
     @IsModerator
     @PostMapping("operators/low-rate")
     fun getLowRateOperatorDateRange(
-        @RequestBody dto: DateRangeRequest,
-        pageable: Pageable
+        @RequestBody dto: DateRangeRequest, pageable: Pageable
     ): Page<RateInfo> {
         return sessionService.getLowRateOperatorDateRange(dto, pageable)
     }
@@ -133,8 +141,7 @@ class SessionController(private val sessionService: SessionService) {
 @RestController
 @RequestMapping("private/manage-users")
 class PrivateUserController(
-    private val userService: UserService,
-    private val sessionService: SessionService
+    private val userService: UserService, private val sessionService: SessionService
 ) {
     @IsModerator
     @GetMapping("get-users")
@@ -158,7 +165,6 @@ class PrivateUserController(
 @RequestMapping("operator")
 class OperatorController(
     private val messageToOperatorService: MessageToOperatorService,
-    private val sendMessage: SendMessageUseCase
 ) {
     @IsModerator
     @GetMapping("get-sessions")
@@ -166,15 +172,16 @@ class OperatorController(
 
     @IsModerator
     @GetMapping("get-session-messages/{id}")
-    fun getSessionMessages(@PathVariable id: Long) = messageToOperatorService.getSessionMessages(id)
+    fun getSessionMessages(@PathVariable id: String) = messageToOperatorService.getSessionMessages(id)
 
     @IsUser
-    @GetMapping("getUnreadMessages/{id}")
-    fun getUnreadMessages(@PathVariable id: Long) = messageToOperatorService.getUnreadMessages(id)
+    @GetMapping("get-unread-messages/{id}")
+    fun getUnreadMessages(@PathVariable id: String) = messageToOperatorService.getUnreadMessages(id)
 
     @IsModerator
     @PostMapping("/send-msg")
-    fun sendMessage() = messageToOperatorService.sendMessage()
+    fun sendMessage(message: OperatorSentMsgRequest) =
+        messageToOperatorService.sendMessage(message)
 }
 
 @RestController

@@ -7,9 +7,11 @@ import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery
 import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.methods.ParseMode
 import org.telegram.telegrambots.meta.api.methods.send.SendChatAction
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.File
+import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
@@ -39,7 +41,6 @@ open class SupportTelegramBot(
     private val sessionRepository: SessionRepository,
     private val messageSource: MessageSource,
     private val fileInfoRepository: FileInfoRepository,
-
     private val executorService: Executor = Executors.newFixedThreadPool(20),
 ) : TelegramLongPollingBot(token) {
     companion object {
@@ -227,8 +228,6 @@ open class SupportTelegramBot(
             } else {
                 user.botId = botId
                 userRepository.save(user)
-
-
             }
         }
     }
@@ -236,7 +235,7 @@ open class SupportTelegramBot(
     private fun saveLocation(message: Message): Location? {
         return if (message.hasLocation()) {
             val loc = message.location
-            locationRepository.save(Location(loc.latitude.toFloat(), loc.longitude.toFloat()))
+            locationRepository.save(Location(loc.latitude, loc.longitude))
         } else null
     }
 
@@ -392,10 +391,9 @@ open class SupportTelegramBot(
         botMessageRepository.findByUserIdAndMessageId(chatId, messageId)?.let { message ->
             editedText?.let {
                 if (message.botMessageType == BotMessageType.TEXT) {
-                    message.editedText = it
+                    message.originalText = message.text
+                    message.text = it
                     botMessageRepository.save(message)
-
-                    //TODO send edited message to operator
                 }
             }
 
@@ -407,10 +405,9 @@ open class SupportTelegramBot(
                         BotMessageType.ANIMATION
                     )
                 ) {
-                    message.editedCaption = it
+                    message.originalText = message.caption
+                    message.caption = it
                     botMessageRepository.save(message)
-
-                    //TODO send edited message to operator
                 }
             }
         }
@@ -565,7 +562,6 @@ open class SupportTelegramBot(
     open fun getMsg(key: String, user: BotUser): String {
         try {
             val locale = Locale.forLanguageTag(user.languages.elementAt(0).name.lowercase())
-            return messageSource.getMessage(key, null, locale)
             return messageSource.getMessage(key, null, locale)
         } catch (e: Exception) {
             return "Error"

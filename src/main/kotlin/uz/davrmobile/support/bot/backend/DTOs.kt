@@ -53,7 +53,7 @@ data class TokenRequest(
 )
 
 data class BotResponse(
-    val id: Long,
+    val id: String,
     val token: String,
     val username: String,
     val name: String,
@@ -62,38 +62,38 @@ data class BotResponse(
     companion object {
         fun torResponse(bot: Bot): BotResponse {
             return bot.run {
-                BotResponse(id!!, token, username, name, status)
+                BotResponse(hashId, token, username, name, status)
             }
         }
     }
 }
 
 data class SessionResponse(
-    val id: Long,
+    val id: String,
     val user: BotUser,
-    val botId: Long,
+    val botId: String,
     val status: SessionStatusEnum,
     val newMessagesCount: Int
 ) {
     companion object {
-        fun toResponse(session: Session, messageCount: Int): SessionResponse {
+        fun toResponse(session: Session, messageCount: Int, bot: Bot): SessionResponse {
             session.run {
-                return SessionResponse(id!!, user, botId, status!!, messageCount)
+                return SessionResponse(hashId, user, bot.hashId, status!!, messageCount)
             }
         }
     }
 }
 
 data class SessionMessagesResponse(
-    val sessionId: Long,
+    val sessionId: String,
     val from: UserResponse,
     val messages: List<BotMessageResponse>
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class BotMessageResponse(
-    val id: Long,
-    val sessionId: Long,
+    val id: String,
+    val sessionId: String,
     val messageId: Int,
     val type: BotMessageType,
     val replyMessageId: Int?,
@@ -108,8 +108,8 @@ data class BotMessageResponse(
         fun toResponse(botMessage: BotMessage): BotMessageResponse {
             botMessage.run {
                 return BotMessageResponse(
-                    id!!,
-                    session.id!!, messageId, botMessageType,
+                    hashId,
+                    session.hashId, messageId, botMessageType,
                     replyMessageId, text, caption,
                     file?.hashId,
                     location?.let { LocationResponse.toResponse(it) },
@@ -121,9 +121,37 @@ data class BotMessageResponse(
     }
 }
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class OperatorSentMsgRequest(
+    val sessionId: String,
+    val type: BotMessageType,
+    val replyMessageId: Int?,
+    val text: String?,
+    val caption: String?,
+    val fileId: List<String>?,
+    val location: LocationRequest?,
+    val contact: ContactRequest?,
+    val dice: DiceRequest?
+)
+
+data class LocationRequest(
+    val latitude: Double,
+    val longitude: Double,
+)
+
+data class ContactRequest(
+    val name: String,
+    val phoneNumber: String,
+)
+
+data class DiceRequest(
+    val value: Int,
+    val emoji: String
+)
+
 data class LocationResponse(
-    val latitude: Float,
-    val longitude: Float,
+    val latitude: Double,
+    val longitude: Double,
 ) {
     companion object {
         fun toResponse(location: Location): LocationResponse {

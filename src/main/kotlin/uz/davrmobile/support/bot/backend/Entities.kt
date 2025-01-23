@@ -41,6 +41,7 @@ class BotUser(
     @Enumerated(value = EnumType.STRING) var role: UserRole? = UserRole.USER,
 
     var msgIdChooseLanguage: Int? = null,
+    val hashId: String = randomHashId()
 ) : BaseUserEntity() {
     fun isUser(): Boolean {
         return role == UserRole.USER
@@ -52,7 +53,6 @@ class BotUser(
 }
 
 @Table(
-    name = "session",
     indexes = [
         Index(columnList = "user_id, operator_id")
     ]
@@ -62,8 +62,9 @@ class Session(
     @ManyToOne @JoinColumn(name = "user_id") val user: BotUser,
     val botId: Long,
     @Enumerated(EnumType.STRING) var status: SessionStatusEnum? = SessionStatusEnum.WAITING,
-    @Column(name = "operator_id")var operatorId: Long? = null,
+    @Column(name = "operator_id") var operatorId: Long? = null,
     var rate: Short? = null,
+    val hashId: String = randomHashId()
 ) : BaseEntity() {
     fun hasOperator(): Boolean {
         return operatorId != null
@@ -80,8 +81,8 @@ class Session(
 
 @Entity(name = "location")
 class Location(
-    @Column(nullable = false) val latitude: Float,
-    @Column(nullable = false) val longitude: Float,
+    @Column(nullable = false) val latitude: Double,
+    @Column(nullable = false) val longitude: Double,
 ) : BaseEntity()
 
 @Entity(name = "dice")
@@ -96,31 +97,33 @@ class Bot(
     @Column(nullable = false) val username: String,
     val name: String,
     @Enumerated(value = EnumType.STRING) var status: BotStatusEnum = BotStatusEnum.ACTIVE,
-    @ElementCollection var operatorIds: MutableSet<Long> = mutableSetOf()
+    @ElementCollection var operatorIds: MutableSet<Long> = mutableSetOf(),
+    val hashId: String = randomHashId()
 ) : BaseEntity()
 
 @Table(
-    name = "bot_message",
     indexes = [
         Index(columnList = "user_id, session_id")
     ]
 )
 @Entity(name = "bot_message")
 class BotMessage(
-    @ManyToOne @JoinColumn(name = "user_id") val user: BotUser,
     @ManyToOne @JoinColumn(name = "session_id") val session: Session,
     @Column(nullable = false) val messageId: Int,
     @Column(nullable = true) val replyMessageId: Int? = null,
     @Column(nullable = true) var text: String? = null,
-    @Column(nullable = true) var editedText: String? = null,
+    @Column(nullable = true) var originalText: String? = null,
     @Column(nullable = true) var caption: String? = null,
-    @Column(nullable = true) var editedCaption: String? = null,
+    @Column(nullable = true) var originalCaption: String? = null,
     @Enumerated(value = EnumType.STRING) val botMessageType: BotMessageType,
     @OneToOne @JoinColumn(nullable = true) val file: FileInfo? = null,
     @OneToOne @JoinColumn(nullable = true) val location: Location? = null,
     @OneToOne @JoinColumn(nullable = true) val contact: Contact? = null,
     @OneToOne @JoinColumn(nullable = true) val dice: Dice? = null,
     var hasRead: Boolean = false,
+    @ManyToOne @JoinColumn(name = "user_id") val user: BotUser? = null,
+    val fromOperatorId: Long? = null,
+    val hashId: String = randomHashId()
 ) : BaseEntity()
 
 @Entity
