@@ -42,7 +42,7 @@ interface SessionService {
 }
 
 interface FileInfoService {
-    fun upload(multipartFile: MultipartFile)
+    fun upload(multipartFileList: MutableList<MultipartFile>)
 }
 
 @Service
@@ -268,45 +268,34 @@ class MessageToOperatorServiceImpl(
         } ?: throw SessionNotFoundException()
     }
 
-    private fun getInputMediaByFileInfo(fileInfo: FileInfo): InputMedia {
-        val filePath = File(fileInfo.path)
-        val fileName = "test-" + fileInfo.name
-        val inputMedia = when (fileInfo.extension) {
-            "gif" -> InputMediaAnimation()
-            "mp4", "mov", "avi" -> InputMediaVideo()
-            "jpg", "jpeg", "png", "webp" -> InputMediaPhoto()
-            "mp3", "m4a", "ogg", "flac", "wav" -> InputMediaAudio()
-            else -> InputMediaDocument()
-        }
-        inputMedia.setMedia(filePath, fileName)
-        return inputMedia
-    }
 }
 
 @Service
-class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : FileInfoService {
+class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : FileInfoService{
 
     val path: String = "file/${LocalDate.now()}"
 
-    override fun upload(multipartFile: MultipartFile) {
-        val name = UUID.randomUUID().toString()
-        val fileInfo = FileInfo(
-            name = multipartFile.name,
-            extension = extractExtension(multipartFile.originalFilename!!),
-            path = getFilePath(name, multipartFile).toString(),
-            size = multipartFile.size,
-            hashId = name
-        )
-        fileInfoRepository.save(fileInfo)
+    override fun upload(multipartFileList: MutableList<MultipartFile>) {
+        multipartFileList.forEach { multipartFile ->
+            val name = UUID.randomUUID().toString()
+            val fileInfo = FileInfo(
+                name = multipartFile.name,
+                extension = extractExtension(multipartFile.originalFilename!!),
+                path = getFilePath(name, multipartFile).toString(),
+                size = multipartFile.size,
+                hashId = name
+            )
+            fileInfoRepository.save(fileInfo)
 
-        val filePath = Paths.get(fileInfo.path)
-        filePath.parent?.let { directoryPath ->
-            if (!Files.exists(directoryPath)) {
-                Files.createDirectories(directoryPath)
+            val filePath = Paths.get(fileInfo.path)
+            filePath.parent?.let { directoryPath ->
+                if (!Files.exists(directoryPath)) {
+                    Files.createDirectories(directoryPath)
+                }
             }
-        }
-        multipartFile.inputStream.use { inputStream ->
-            Files.copy(inputStream, filePath, StandardCopyOption.REPLACE_EXISTING)
+            multipartFile.inputStream.use { inputStream ->
+                Files.copy(inputStream, filePath, StandardCopyOption.REPLACE_EXISTING)
+            }
         }
     }
 
@@ -321,5 +310,18 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
     private fun getFilePath(name: String, multipartFile: MultipartFile): Path {
         return Paths.get(path, "${name}.${extractExtension(multipartFile.originalFilename!!)}")
     }
+        private fun getInputMediaByFileInfo(fileInfo: FileInfo): InputMedia {
+        val filePath = File(fileInfo.path)
+        val fileName = "test-" + fileInfo.name
+        val inputMedia = when (fileInfo.extension) {
+            "gif" -> InputMediaAnimation()
+            "mp4", "mov", "avi" -> InputMediaVideo()
+            "jpg", "jpeg", "png", "webp" -> InputMediaPhoto()
+            "mp3", "m4a", "ogg", "flac", "wav" -> InputMediaAudio()
+            else -> InputMediaDocument()
+        }
+        inputMedia.setMedia(filePath, fileName)
+        return inputMedia
+    }
 }
-
+}
