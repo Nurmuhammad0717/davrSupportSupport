@@ -4,6 +4,8 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
+import org.telegram.telegrambots.meta.api.methods.send.SendAnimation
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -11,12 +13,18 @@ import java.nio.file.StandardCopyOption
 import java.time.LocalDate
 import java.util.*
 import org.telegram.telegrambots.meta.api.methods.send.SendContact
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument
 import org.telegram.telegrambots.meta.api.methods.send.SendLocation
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto
+import org.telegram.telegrambots.meta.api.methods.send.SendVideo
+import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.meta.api.objects.media.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
+import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
 import java.io.File
+import java.io.InputStream
 import javax.transaction.Transactional
 import kotlin.math.round
 
@@ -42,7 +50,7 @@ interface SessionService {
 }
 
 interface FileInfoService {
-    fun upload(multipartFileList: MutableList<MultipartFile>)
+    fun upload(multipartFileList: MutableList<MultipartFile>): List<FileInfoResponse>
 }
 
 @Service
@@ -239,9 +247,9 @@ class MessageToOperatorServiceImpl(
                                 val inputMediaList: MutableList<InputMedia> = mutableListOf()
                                 for (fileHashId in fileHashIds) {
                                     val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
-                                    inputMediaList.add(getInputMediaByFileInfo(fileInfo))
+                                    inputMediaList.add(getInputMediaByFileInfo(fileInfo, message.caption))
                                 }
-                                absSender.execute(SendMediaGroup(userId, inputMediaList))
+                                sendMediaGroup(userId, inputMediaList, absSender, message.caption)
                             } ?: throw BadCredentialsException()
                         }
 
@@ -266,29 +274,90 @@ class MessageToOperatorServiceImpl(
             } ?: throw BotNotFoundException()
         } ?: throw SessionNotFoundException()
     }
-    private fun getInputMediaByFileInfo(fileInfo: FileInfo): InputMedia {
-        val filePath = File(fileInfo.path)
-        val fileName = "test-" + fileInfo.name
-        val inputMedia = when (fileInfo.extension) {
-            "gif" -> InputMediaAnimation()
+
+    private fun sendMediaGroup(
+        userId: String, inputMediaList: MutableList<InputMedia>, absSender: SupportTelegramBot, caption: String?
+    ) {
+        if (inputMediaList.size == 1) {
+            val media = inputMediaList[0]
+            val inputFile = InputFile().setMedia(File(media.media))
+
+            when (media) {
+                is InputMediaAnimation -> {
+                    val send = SendAnimation()
+                    send.chatId = userId
+                    send.animation = inputFile
+                    send.caption = caption
+                    absSender.execute(send)
+                }
+
+                is InputMediaVideo -> {
+                    val send = SendVideo()
+                    send.chatId = userId
+                    send.video = inputFile
+                    send.caption = caption
+                    absSender.execute(send)
+                }
+
+                is InputMediaPhoto -> {
+                    val send = SendPhoto(userId, inputFile)
+                    send.chatId = userId
+                    send.photo = inputFile
+                    send.caption = caption
+                    absSender.execute(send)
+                }
+
+                is InputMediaAudio -> {
+                    val send = SendAudio()
+                    send.chatId = userId
+                    send.audio = inputFile
+                    send.caption = caption
+                    absSender.execute(send)
+                }
+
+                else -> {
+                    val send = SendDocument()
+                    send.chatId = userId
+                    send.document = inputFile
+                    send.caption = caption
+                    absSender.execute(send)
+                }
+            }
+        } else if (inputMediaList.size > 10) {
+            inputMediaList.chunked(10).map { inputMedia ->
+                sendMediaGroup(userId, inputMedia.toMutableList(), absSender, caption)
+            }
+        } else {
+            absSender.execute(SendMediaGroup(userId, inputMediaList))
+        }
+    }
+
+    private fun getInputMediaByFileInfo(fileInfo: FileInfo, caption: String?): InputMedia {
+        val filePath = File(Paths.get(fileInfo.path).toAbsolutePath().toString())
+        val fileName = fileInfo.name
+        val extension = fileInfo.extension.lowercase()
+        val inputMedia = when (extension) {
+            "gif" -> InputMediaAnimation().apply { }
             "mp4", "mov", "avi" -> InputMediaVideo()
             "jpg", "jpeg", "png", "webp" -> InputMediaPhoto()
             "mp3", "m4a", "ogg", "flac", "wav" -> InputMediaAudio()
             else -> InputMediaDocument()
         }
-        inputMedia.setMedia(filePath, fileName)
+        inputMedia.setMedia(filePath.inputStream(), filePath.toString().substringBeforeLast("/"))
+        inputMedia.caption = caption
         return inputMedia
     }
 }
 
 @Service
-class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : FileInfoService{
+class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : FileInfoService {
 
     val path: String = "files/${LocalDate.now()}"
 
-    override fun upload(multipartFileList: MutableList<MultipartFile>) {
+    override fun upload(multipartFileList: MutableList<MultipartFile>): List<FileInfoResponse> {
+        val responseFiles: MutableList<FileInfoResponse> = mutableListOf()
         multipartFileList.forEach { multipartFile ->
-            val name = UUID.randomUUID().toString()
+            val name = randomHashId()
             val fileInfo = FileInfo(
                 name = multipartFile.name,
                 extension = extractExtension(multipartFile.originalFilename!!),
@@ -296,7 +365,7 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
                 size = multipartFile.size,
                 hashId = name
             )
-            fileInfoRepository.save(fileInfo)
+            val savedFileInfo = fileInfoRepository.save(fileInfo)
 
             val filePath = Paths.get(fileInfo.path)
             filePath.parent?.let { directoryPath ->
@@ -307,15 +376,13 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
             multipartFile.inputStream.use { inputStream ->
                 Files.copy(inputStream, filePath, StandardCopyOption.REPLACE_EXISTING)
             }
+            responseFiles.add(FileInfoResponse.toResponse(savedFileInfo))
         }
+        return responseFiles
     }
 
     private fun extractExtension(name: String): String {
-        name.let {
-            val dotIndex = name.lastIndexOf('.')
-            if (dotIndex >= 0) return it.substring(dotIndex + 1)
-        }
-        return ""
+        return name.substringAfterLast(".")
     }
 
     private fun getFilePath(name: String, multipartFile: MultipartFile): Path {
