@@ -15,7 +15,8 @@ enum class ErrorCode(val code: Int) {
     ACCESS_DENIED(641),
     USERNAME_ALREADY_EXISTS(642),
     BUSY_SESSION(643),
-    FILE_NOT_FOUND(700)
+    FILE_NOT_FOUND(644),
+    OPERATOR_LANGUAGE_NOT_FOUND(645)
 }
 
 enum class UserRole {

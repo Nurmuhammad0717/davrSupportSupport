@@ -80,4 +80,9 @@ class FileNotFoundException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.FILE_NOT_FOUND
 }
 
+class OperatorLanguageNotFoundException : DBusinessException() {
+    override fun errorCode(): ErrorCode = ErrorCode.OPERATOR_LANGUAGE_NOT_FOUND
+}
+
+
 
