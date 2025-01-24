@@ -34,7 +34,7 @@ interface UserService {
     fun deleteUser(userId: Long)
     fun getUserById(id: Long): UserResponse
     fun addOperatorLanguages(languages: List<LanguageEnum>)
-    fun removeOperatorLanguage(id:Long)
+    fun removeOperatorLanguage(id: Long)
 }
 
 interface FileInfoService {
@@ -72,12 +72,12 @@ class UserServiceImpl(
     override fun addOperatorLanguages(languages: List<LanguageEnum>) {
         val userId = getUserId()
         for (it in languages) {
-            operatorLanguageRepository.save(OperatorLanguage(userId,it))
+            operatorLanguageRepository.save(OperatorLanguage(userId, it))
         }
     }
 
     override fun removeOperatorLanguage(id: Long) {
-        operatorLanguageRepository.trash(id)?: throw OperatorLanguageNotFoundException()
+        operatorLanguageRepository.trash(id) ?: throw OperatorLanguageNotFoundException()
     }
 }
 
