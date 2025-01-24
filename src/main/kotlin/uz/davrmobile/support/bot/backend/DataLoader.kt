@@ -42,7 +42,8 @@ class DataLoader(
                 diceRepository,
                 sessionRepository,
                 messageSource,
-                fileInfoRepository
+                fileInfoRepository,
+                botRepository
             )
             val me = supportTelegramBot.meAsync.get()
             supportTelegramBot.botId = bot.id!!

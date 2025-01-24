@@ -28,7 +28,6 @@ import java.io.File
 import java.io.FileInputStream
 import javax.servlet.http.HttpServletResponse
 import javax.transaction.Transactional
-import kotlin.math.round
 
 interface UserService {
     fun getAllUsers(): List<UserResponse>
@@ -157,11 +156,9 @@ class MessageToOperatorServiceImpl(
                     when (message.type!!) {
                         BotMessageType.TEXT -> {
                             message.text?.let { text ->
-                                val sendMessage = SendMessage(userId, text)
-                                message.replyMessageId?.let { replyId ->
-                                    sendMessage.replyToMessageId = replyId
-                                }
-                                absSender.execute(sendMessage)
+                                val send = SendMessage(userId, text)
+                                send.replyToMessageId = message.replyMessageId
+                                absSender.execute(send)
                             } ?: throw BadCredentialsException()
                         }
 
@@ -172,7 +169,13 @@ class MessageToOperatorServiceImpl(
                                     val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
                                     inputMediaList.add(getInputMediaByFileInfo(fileInfo, message.caption))
                                 }
-                                sendMediaGroup(userId, inputMediaList, absSender, message.caption)
+                                sendMediaGroup(
+                                    userId,
+                                    inputMediaList,
+                                    absSender,
+                                    message.caption,
+                                    message.replyMessageId
+                                )
                             } ?: throw BadCredentialsException()
                         }
 
@@ -185,6 +188,7 @@ class MessageToOperatorServiceImpl(
                                     send.animation =
                                         InputFile(File(Paths.get(fileInfo.path).toAbsolutePath().toString()))
                                     send.caption = message.caption
+                                    send.replyToMessageId = message.replyMessageId
                                     absSender.execute(send)
                                 }
                             }
@@ -192,13 +196,17 @@ class MessageToOperatorServiceImpl(
 
                         BotMessageType.LOCATION -> {
                             message.location?.let {
-                                absSender.execute(SendLocation(userId, it.latitude, it.longitude))
+                                val send = SendLocation(userId, it.latitude, it.longitude)
+                                send.replyToMessageId = message.replyMessageId
+                                absSender.execute(send)
                             } ?: throw BadCredentialsException()
                         }
 
                         BotMessageType.CONTACT -> {
                             message.contact?.let {
-                                absSender.execute(SendContact(userId, it.phoneNumber, it.name))
+                                val send = SendContact(userId, it.phoneNumber, it.name)
+                                send.replyToMessageId = message.replyMessageId
+                                absSender.execute(send)
                             } ?: throw BadCredentialsException()
                         }
 
@@ -213,7 +221,11 @@ class MessageToOperatorServiceImpl(
     }
 
     private fun sendMediaGroup(
-        userId: String, inputMediaList: MutableList<InputMedia>, absSender: SupportTelegramBot, caption: String?
+        userId: String,
+        inputMediaList: MutableList<InputMedia>,
+        absSender: SupportTelegramBot,
+        caption: String?,
+        replyMessageId: Int?
     ) {
         var isDocument = false
         for (inputMedia in inputMediaList)
@@ -243,6 +255,7 @@ class MessageToOperatorServiceImpl(
                     send.chatId = userId
                     send.animation = inputFile
                     send.caption = caption
+                    send.replyToMessageId = replyMessageId
                     absSender.execute(send)
                 }
 
@@ -251,6 +264,7 @@ class MessageToOperatorServiceImpl(
                     send.chatId = userId
                     send.video = inputFile
                     send.caption = caption
+                    send.replyToMessageId = replyMessageId
                     absSender.execute(send)
                 }
 
@@ -259,6 +273,7 @@ class MessageToOperatorServiceImpl(
                     send.chatId = userId
                     send.photo = inputFile
                     send.caption = caption
+                    send.replyToMessageId = replyMessageId
                     absSender.execute(send)
                 }
 
@@ -267,6 +282,7 @@ class MessageToOperatorServiceImpl(
                     send.chatId = userId
                     send.audio = inputFile
                     send.caption = caption
+                    send.replyToMessageId = replyMessageId
                     absSender.execute(send)
                 }
 
@@ -275,16 +291,19 @@ class MessageToOperatorServiceImpl(
                         chatId = userId
                         document = inputFile
                         this.caption = caption
+                        this.replyToMessageId = replyMessageId
                     }
                     absSender.execute(send)
                 }
             }
         } else if (inputMediaListTemp.size > 10) {
             inputMediaListTemp.chunked(10).map { inputMedia ->
-                sendMediaGroup(userId, inputMedia.toMutableList(), absSender, caption)
+                sendMediaGroup(userId, inputMedia.toMutableList(), absSender, caption, replyMessageId)
             }
         } else {
-            absSender.execute(SendMediaGroup(userId, inputMediaListTemp))
+            val send = SendMediaGroup(userId, inputMediaListTemp)
+            send.replyToMessageId = replyMessageId
+            absSender.execute(send)
         }
     }
 

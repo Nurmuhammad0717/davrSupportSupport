@@ -104,8 +104,8 @@ class Dice(
 @Entity
 class Bot(
     @Column(nullable = false) val token: String,
-    @Column(nullable = false) val username: String,
-    val name: String,
+    @Column(nullable = false) var username: String,
+    var name: String,
     @Enumerated(value = EnumType.STRING) var status: BotStatusEnum = BotStatusEnum.ACTIVE,
     @ElementCollection var operatorIds: MutableSet<Long> = mutableSetOf(),
     val hashId: String = randomHashId()

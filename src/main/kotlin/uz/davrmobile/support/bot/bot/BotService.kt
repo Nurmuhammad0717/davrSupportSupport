@@ -3,6 +3,7 @@ package uz.davrmobile.support.bot.bot
 import org.springframework.context.MessageSource
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.TelegramBotsApi
+import org.telegram.telegrambots.meta.api.methods.GetMe
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault
@@ -38,7 +39,8 @@ class BotService(
             diceRepository,
             sessionRepository,
             messageSource,
-            fileInfoRepository
+            fileInfoRepository,
+            botRepository
         )
         val me = supportTelegramBot.meAsync.get()
         val savedBot = botRepository.save(Bot(req.token, me.userName, me.firstName))
@@ -86,14 +88,33 @@ class BotService(
     }
 
     fun getAllBots(): List<BotResponse> {
-        return botRepository.findAllNotDeleted().map {
-            BotResponse.torResponse(it)
+        return updateAllBotsAndGet(botRepository.findAllByDeletedFalse()).map {
+            val res = BotResponse.torResponse(it)
+            res.token = null
+            res
         }
     }
 
     fun getAllActiveBots(): List<BotResponse> {
-        return botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE).map {
-            BotResponse.torResponse(it)
+        return updateAllBotsAndGet(botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE)).map {
+            val res = BotResponse.torResponse(it)
+            res.token = null
+            res
+        }
+    }
+
+    private fun updateBotInfo(bot: Bot): Bot {
+        findBotById(bot.id!!)?.let {
+            val user = it.execute(GetMe())
+            bot.username = user.userName
+            bot.name = user.firstName
+        }
+        return bot
+    }
+
+    private fun updateAllBotsAndGet(bots: List<Bot>): List<Bot> {
+        return bots.map {
+            botRepository.save(updateBotInfo(it))
         }
     }
 
@@ -108,11 +129,11 @@ class BotService(
         botRepository.deleteByHashId(id)
     }
 
-    fun  addBotToOperator(id: String) {
+    fun addBotToOperator(id: String) {
         botRepository.findByHashId(id)?.let { bot ->
             bot.operatorIds.add(getUserId())
             botRepository.save(bot)
-        }?:run{
+        } ?: run {
             throw BotNotFoundException()
         }
     }
@@ -124,7 +145,7 @@ class BotService(
                 bot.operatorIds.remove(operatorId)
                 botRepository.save(bot)
             }
-        }?:run{
+        } ?: run {
             throw BotNotFoundException()
         }
     }

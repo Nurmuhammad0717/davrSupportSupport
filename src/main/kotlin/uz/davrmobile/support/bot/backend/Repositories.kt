@@ -23,6 +23,7 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
     fun countAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long): Int
 
     fun findByUserIdAndMessageId(userId: Long, messageId: Int): BotMessage?
+
     @Query(
         """
             SELECT NEW map(m.session as session, m as message)
@@ -37,9 +38,9 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
 
 interface SessionRepository : BaseRepository<Session> {
 
-    fun findAllByBotIdInAndDeletedFalseAndStatus(botIds:List<Long>,status: SessionStatusEnum): List<Session>
+    fun findAllByBotIdInAndDeletedFalseAndStatus(botIds: List<Long>, status: SessionStatusEnum): List<Session>
 
-    fun findAllByOperatorIdAndStatus(operatorId: Long,status: SessionStatusEnum): List<Session>
+    fun findAllByOperatorIdAndStatus(operatorId: Long, status: SessionStatusEnum): List<Session>
 
     fun findAllByStatusAndDeletedFalse(status: SessionStatusEnum): List<Session>
 
@@ -175,7 +176,8 @@ interface BotRepository : BaseRepository<Bot> {
     fun findByHashId(hashId: String): Bot?
     fun deleteByHashId(id: String)
     fun findByHashIdAndDeletedFalse(id: String): Bot?
-    fun findByIdAndStatusAndDeletedFalse(id:Long,status: BotStatusEnum) : Bot?
+    fun findByIdAndStatusAndDeletedFalse(id: Long, status: BotStatusEnum): Bot?
+    fun findAllByDeletedFalse(): List<Bot>
 }
 
 interface FileInfoRepository : BaseRepository<FileInfo> {

@@ -7,11 +7,8 @@ import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery
 import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.methods.ParseMode
 import org.telegram.telegrambots.meta.api.methods.send.SendChatAction
-import org.telegram.telegrambots.meta.api.methods.send.SendDocument
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
-import org.telegram.telegrambots.meta.api.objects.File
-import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
@@ -25,9 +22,9 @@ import uz.davrmobile.support.bot.bot.Utils.Companion.clearPhone
 import uz.davrmobile.support.bot.bot.Utils.Companion.htmlBold
 import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
 import java.io.FileOutputStream
+import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.util.*
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -45,6 +42,7 @@ open class SupportTelegramBot(
     private val sessionRepository: SessionRepository,
     private val messageSource: MessageSource,
     private val fileInfoRepository: FileInfoRepository,
+    private val botRepository: BotRepository,
     private val executorService: Executor = Executors.newFixedThreadPool(20),
 ) : TelegramLongPollingBot(token) {
     companion object {
@@ -267,7 +265,7 @@ open class SupportTelegramBot(
         val dice = saveDice(message)
 
         val fileInfo = typeAndFileId.second?.let { fileId ->
-            downloadAndSaveFile(fileId)
+            downloadAndSaveFile(fileId, user)
         }
 
         return botMessageRepository.save(
@@ -287,30 +285,36 @@ open class SupportTelegramBot(
         )
     }
 
-    private fun downloadAndSaveFile(fileIdAndFileName: String): FileInfo {
+    private fun downloadAndSaveFile(fileIdAndFileName: String, user: BotUser): FileInfo? {
         val uploadFileName = fileIdAndFileName.substringAfter("$%%%$")
         val fileId = fileIdAndFileName.substringBefore("$%%%$")
-        val fileFromTelegram = this.execute(GetFile(fileId))
-        val inputStream = this.downloadFileAsStream(fileFromTelegram)
-        var fileName = fileFromTelegram.filePath.substringAfterLast("/")
-        val fileExtension = fileName.substringAfterLast(".")
-        val now = LocalDateTime.now()
-        fileName = fileName.substringBeforeLast(".") + randomHashId() + "." + fileExtension
-        val filePath = "./files/${LocalDate.now()}/$fileName"
-        FileOutputStream(filePath).use { outputStream ->
-            inputStream.copyTo(outputStream)
-        }
+        try {
+            val fileFromTelegram = this.execute(GetFile(fileId))
+            val inputStream = this.downloadFileAsStream(fileFromTelegram)
+            val fileSize = fileFromTelegram.fileSize
+            var fileName = fileFromTelegram.filePath.substringAfterLast("/")
+            val fileExtension = fileName.substringAfterLast(".")
+            fileName = fileName.substringBeforeLast(".") + randomHashId() + "." + fileExtension
+            val filePath = "./files/${LocalDate.now()}/$fileName"
+            Paths.get(filePath).parent?.let { directoryPath ->
+                if (!Files.exists(directoryPath)) Files.createDirectories(directoryPath)
+            }
+            FileOutputStream(filePath).use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
 
-        val fileSize = fileFromTelegram.fileSize
-
-        return fileInfoRepository.save(
-            FileInfo(
-                fileName, uploadFileName,
-                fileExtension,
-                filePath,
-                fileSize
+            return fileInfoRepository.save(
+                FileInfo(
+                    fileName, uploadFileName,
+                    fileExtension,
+                    filePath,
+                    fileSize
+                )
             )
-        )
+        } catch (e: Exception) {
+            this.execute(SendMessage(user.id.toString(), getMsg("MAX_FILE_SIZE_20_MB", user)))
+            return null
+        }
     }
 
     private fun saveUserPhoneNumber(user: BotUser, phoneNumber: String) {

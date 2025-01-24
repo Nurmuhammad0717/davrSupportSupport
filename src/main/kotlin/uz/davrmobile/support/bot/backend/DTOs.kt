@@ -2,6 +2,7 @@ package uz.davrmobile.support.bot.backend
 
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonProperty
 import org.jetbrains.annotations.Nullable
 import org.springframework.data.jpa.domain.AbstractPersistable_.id
 import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
@@ -58,9 +59,10 @@ data class TokenRequest(
     val token: String,
 )
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 data class BotResponse(
     val id: String,
-    val token: String,
+    var token: String?,
     val username: String,
     val name: String,
     val status: BotStatusEnum
