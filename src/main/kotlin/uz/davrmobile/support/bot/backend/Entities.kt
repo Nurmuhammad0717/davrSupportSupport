@@ -151,3 +151,9 @@ class FileInfo(
     @Column(nullable = false) val size: Long,
     @Column(nullable = false, unique = true) val hashId: String = randomHashId(),
 ) : BaseEntity()
+
+@Entity
+class OperatorLanguage(
+    val operatorId: Long,
+    @Enumerated(EnumType.STRING) val language: LanguageEnum
+): BaseEntity()

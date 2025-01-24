@@ -182,5 +182,8 @@ interface FileInfoRepository : BaseRepository<FileInfo> {
     fun findByHashId(hashId: String): FileInfo?
 }
 
+interface OperatorLanguageRepository : BaseRepository<OperatorLanguage>
+
+
 
 
