@@ -169,42 +169,64 @@ interface SessionRepository : BaseRepository<Session> {
     fun getSessionByOperatorId(operatorId: Long, pageable: Pageable): Page<Session>
     fun getSessionByStatus(status: SessionStatusEnum, pageable: Pageable): Page<Session>
     fun findByHashId(hashId: String): Session?
-    fun getAvgRate(): Short
 
-    @Query("""
-        select 
-        s.operator_id,
-        count(s.id),
-        count(m.id),
-        avg(s.rate),
-          from session s join bot_message m on s.id = m.session_id
-          where s.operator_id = :operatorId and s.created_date BETWEEN :startDate: AND :endDate
+    @Query(
+        """
+    SELECT 
+        s.operator_id AS operatorId,
+        COUNT(DISTINCT s.id) AS sessionCount,
+        COUNT(m.id) AS messageCount,
+        COALESCE(AVG(s.rate), 0) AS avgRate
+    FROM session s
+    LEFT JOIN bot_message m ON s.id = m.session_id
+    WHERE s.operator_id = :operatorId 
+      AND DATE(s.created_date) BETWEEN :startDate and :endDate
+    GROUP BY s.operator_id
     """,
-        nativeQuery = true)
-    fun findSessionInfoByOperatorIdDateRange(startDate: Date, endDate: Date, operatorId: Long): SessionInfoByOperatorResponse
-    @Query("""
-        select 
-        s.operator_id,
-        count(s.id),
-        count(m.id),
-        avg(s.rate),
-          from session s join bot_message m on s.id = m.session_id
-          where s.operator_id = :operatorId and s.created_date = :date
-    """,
-        nativeQuery = true)
-    fun findSessionInfoByOperatorIdAndDate(date: Date, operatorId: Long): SessionInfoByOperatorResponse
+        nativeQuery = true
+    )
+    fun findSessionInfoByOperatorIdDateRange(
+        startDate: Date,
+        endDate: Date,
+        operatorId: Long
+    ): SessionInfoByOperatorResponse
 
-    @Query("""
-        select 
-        s.operator_id,
-        count(s.id),
-        count(m.id),
-        avg(s.rate),
-          from session s join bot_message m on s.id = m.session_id
-          where s.operator_id = :operatorId
+    @Query(
+        """
+    SELECT 
+        s.operator_id AS operatorId,
+        COUNT(DISTINCT s.id) AS sessionCount,
+        COUNT(m.id) AS messageCount,
+        COALESCE(AVG(s.rate), 0) AS avgRate
+    FROM session s
+    LEFT JOIN bot_message m ON s.id = m.session_id
+    WHERE s.operator_id = :operatorId 
+      AND DATE(s.created_date) = :thisDate
+    GROUP BY s.operator_id
     """,
-        nativeQuery = true)
+        nativeQuery = true
+    )
+    fun findSessionInfoByOperatorIdAndDate(
+        @Param("thisDate") thisDate: Date,
+        @Param("operatorId") operatorId: Long
+    ): SessionInfoByOperatorResponse
+
+    @Query(
+        """
+    SELECT 
+        s.operator_id AS operatorId,
+        COUNT(DISTINCT s.id) AS sessionCount,
+        COUNT(m.id) AS messageCount,
+        COALESCE(AVG(s.rate), 0) AS avgRate
+    FROM session s
+    LEFT JOIN bot_message m ON s.id = m.session_id
+    WHERE s.operator_id = :operatorId
+    GROUP BY s.operator_id
+    """,
+        nativeQuery = true
+    )
     fun findSessionInfoByOperatorId(operatorId: Long): SessionInfoByOperatorResponse
+
 
 }
 
@@ -230,12 +252,6 @@ interface OperatorLanguageRepository : BaseRepository<OperatorLanguage>
 
 interface StandardAnswerRepository : BaseRepository<StandardAnswer> {
     fun existsByText(text: String): Boolean
-
-    @Query(
-        """
-        select exists (select a from StandardAnswer a where a.id != :id and a.text = :text)
-    """
-    )
-    fun existsByText(id: Long, text: String): Boolean
+    fun existsByTextAndIdNot(text: String, id: Long): Boolean
 }
 

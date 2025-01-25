@@ -284,10 +284,10 @@ data class GetSessionRequest(
 )
 
 interface SessionInfoByOperatorResponse {
-    var operatorId: Long
-    val sessionCount: Int
-    val messageCount: Int
-    val avgRate: Double
+    var operatorId: Long?
+    val sessionCount: Int?
+    val messageCount: Int?
+    val avgRate: Double?
 }
 
 data class OperatorEditMsgRequest(
