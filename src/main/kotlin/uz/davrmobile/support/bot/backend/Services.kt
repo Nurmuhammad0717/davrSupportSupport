@@ -130,10 +130,7 @@ class MessageToOperatorServiceImpl(
     override fun getSessionMessages(id: String): SessionMessagesResponse {
         sessionRepository.findByHashId(id)?.let { session ->
             val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(session.id!!)
-            return SessionMessagesResponse(
-                session.hashId,
-                UserResponse.toResponse(session.user),
-                messages.map { BotMessageResponse.toResponse(it) })
+            return SessionMessagesResponse.toResponse(session, messages)
         }
         throw SessionNotFoundException()
     }
@@ -142,14 +139,10 @@ class MessageToOperatorServiceImpl(
     override fun getUnreadMessages(id: String): SessionMessagesResponse {
         sessionRepository.findByHashId(id)?.let { session ->
             val unreadMessages = botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(session.id!!)
-            for (unreadMessage in unreadMessages) {
+            for (unreadMessage in unreadMessages)
                 unreadMessage.hasRead = true
-            }
             botMessageRepository.saveAll(unreadMessages)
-            return SessionMessagesResponse(
-                session.hashId,
-                UserResponse.toResponse(session.user),
-                unreadMessages.map { BotMessageResponse.toResponse(it) })
+            return SessionMessagesResponse.toResponse(session, unreadMessages)
         }
         throw SessionNotFoundException()
     }

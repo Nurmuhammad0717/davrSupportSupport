@@ -123,7 +123,19 @@ data class SessionMessagesResponse(
     val sessionId: String,
     val from: UserResponse,
     val messages: List<BotMessageResponse>
-)
+) {
+    companion object {
+        fun toResponse(session: Session, unreadMessages: List<BotMessage>): SessionMessagesResponse {
+            return session.run {
+                SessionMessagesResponse(
+                    hashId,
+                    UserResponse.toResponse(user),
+                    unreadMessages.map { BotMessageResponse.toResponse(it) }
+                )
+            }
+        }
+    }
+}
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class BotMessageResponse(
@@ -137,7 +149,8 @@ data class BotMessageResponse(
     val fileHash: String?,
     val location: LocationResponse?,
     val contact: ContactResponse?,
-    val dice: DiceResponse?
+    val dice: DiceResponse?,
+    var edited: Boolean = false
 ) {
     companion object {
         fun toResponse(botMessage: BotMessage): BotMessageResponse {
@@ -150,7 +163,8 @@ data class BotMessageResponse(
                     file?.hashId,
                     location?.let { LocationResponse.toResponse(it) },
                     contact?.let { ContactResponse.toResponse(it) },
-                    dice?.let { DiceResponse.toResponse(it) }
+                    dice?.let { DiceResponse.toResponse(it) },
+                    (botMessage.originalText != null || botMessage.originalCaption != null),
                 )
             }
         }
