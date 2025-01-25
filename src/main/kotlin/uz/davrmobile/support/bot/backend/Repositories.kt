@@ -45,6 +45,8 @@ interface SessionRepository : BaseRepository<Session> {
 
     fun findAllByStatusAndDeletedFalse(status: SessionStatusEnum): List<Session>
 
+    fun findAllByOperatorId(operatorId: Long, pageable: Pageable): Page<Session>
+
     override fun findByIdAndDeletedFalse(id: Long): Session?
 
     @Query(
