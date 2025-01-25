@@ -1,5 +1,6 @@
 package uz.davrmobile.support.bot.backend
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.Pageable
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
@@ -7,6 +8,7 @@ import uz.davrmobile.support.bot.bot.BotService
 import uz.davrmobile.support.util.IsModerator
 import uz.davrmobile.support.util.IsUser
 import javax.servlet.http.HttpServletResponse
+import javax.validation.Valid
 
 
 @RestController
@@ -56,7 +58,7 @@ class OperatorController(
 ) {
     @IsModerator
     @GetMapping("get-sessions")
-    fun getSessions() = messageToOperatorService.getSessions()
+    fun getSessions(@RequestBody @Valid request:GetSessionRequest, pageable: Pageable) = messageToOperatorService.getSessions(request,pageable)
 
     @IsModerator
     @GetMapping("get-session-messages/{id}")

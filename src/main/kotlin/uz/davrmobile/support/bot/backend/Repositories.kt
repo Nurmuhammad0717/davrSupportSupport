@@ -39,7 +39,7 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
 
 interface SessionRepository : BaseRepository<Session> {
 
-    fun findAllByBotIdInAndDeletedFalseAndStatus(botIds: List<Long>, status: SessionStatusEnum): List<Session>
+    fun findAllByBotIdInAndDeletedFalseAndStatusAndLanguageIn(botIds: List<Long>, status: SessionStatusEnum,languages: List<LanguageEnum>,pageable: Pageable): Page<Session>
 
     fun findAllByOperatorIdAndStatus(operatorId: Long, status: SessionStatusEnum): List<Session>
 
