@@ -44,6 +44,14 @@ interface FileInfoService {
     fun upload(multipartFileList: MutableList<MultipartFile>): List<FileInfoResponse>
 }
 
+interface StandardAnswerService{
+    fun create(request: StandardAnswerRequest):StandardAnswerResponse
+    fun update(request: StandardAnswerUpdateRequest, id: Long):StandardAnswerResponse
+    fun find(id:Long): StandardAnswerResponse
+    fun findAll(pageable: Pageable): Page<StandardAnswerResponse>
+    fun delete(id:Long)
+}
+
 @Service
 class UserServiceImpl(
     private val userRepository: UserRepository,
@@ -407,5 +415,46 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
                 multipartFile.originalFilename
             )
         }"
+    }
+}
+
+@Service
+class StandardAnswerServiceImpl(
+    private val repository: StandardAnswerRepository,
+) : StandardAnswerService {
+
+    override fun create(request: StandardAnswerRequest): StandardAnswerResponse {
+        existsByText(request.text)
+        return StandardAnswerResponse.toResponse(
+            repository.save(StandardAnswerRequest.toEntity(request)))
+    }
+
+    override fun update(request: StandardAnswerUpdateRequest, id: Long): StandardAnswerResponse {
+        request.text?.let { existsByText(id, it)}
+        val answer = repository.findByIdAndDeletedFalse(id) ?: throw StandardAnswerNotFoundException()
+        return StandardAnswerResponse.toResponse(StandardAnswerUpdateRequest.toEntity(request, answer))
+    }
+
+    override fun find(id: Long): StandardAnswerResponse {
+        val answer = repository.findByIdAndDeletedFalse(id)?: throw StandardAnswerNotFoundException()
+        return StandardAnswerResponse.toResponse(answer)
+    }
+
+    override fun findAll(pageable: Pageable): Page<StandardAnswerResponse> {
+        return repository.findAll(pageable).map { StandardAnswerResponse.toResponse(it) }
+    }
+
+    override fun delete(id: Long) {
+        val answer = repository.findByIdAndDeletedFalse(id)?: throw StandardAnswerNotFoundException()
+        repository.delete(answer)
+    }
+
+    private fun existsByText(text: String)  {
+        repository.existsByText(text).takeIf { it }
+            ?.let {throw StandardAnswerAlreadyExistsException()}
+    }
+    private fun existsByText(id:Long, text: String) {
+        repository.existsByText(id, text).takeIf { it }
+             ?.let {throw StandardAnswerAlreadyExistsException()}
     }
 }
