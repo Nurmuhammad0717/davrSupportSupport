@@ -6,6 +6,7 @@ import org.springframework.web.multipart.MultipartFile
 import uz.davrmobile.support.bot.bot.BotService
 import uz.davrmobile.support.util.IsModerator
 import uz.davrmobile.support.util.IsUser
+import java.util.*
 import javax.servlet.http.HttpServletResponse
 import javax.validation.Valid
 
@@ -116,4 +117,16 @@ class StandardAnswerController(
 
     @DeleteMapping("{id}")
     fun delete(@PathVariable id: Long) = service.delete(id)
+}
+
+@RestController
+@RequestMapping("statistics")
+class StatisticController(
+    private val statisticService: StatisticService
+){
+    @GetMapping
+    fun getSessionInfoByOperator(
+        @RequestParam("startDate") startDate: Date,
+        @RequestParam("endDate") endDate: Date,
+        @RequestParam("operatorId") operatorId: Long): SessionInfoByOperator = statisticService.getSessionByOperator(operatorId, startDate, endDate)
 }

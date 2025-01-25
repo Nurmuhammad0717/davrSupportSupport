@@ -286,3 +286,10 @@ data class StandardAnswerResponse(
 data class GetSessionRequest(
    @NotNull var languages: MutableList<LanguageEnum>,
 )
+
+interface SessionInfoByOperator {
+    val operatorId: Long
+    val sessionCount: Int
+    val messageCount: Int
+    val avgRate: Double
+}
