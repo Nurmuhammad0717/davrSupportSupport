@@ -95,3 +95,25 @@ class FileInfoController(
     @GetMapping
     fun findAll(pageable: Pageable) = fileInfoService.findAll(pageable)
 }
+
+@RestController
+@RequestMapping("standard-answers")
+class StandardAnswerController(
+    private val service: StandardAnswerService
+){
+
+    @PostMapping
+    fun create(@RequestBody request: StandardAnswerRequest) = service.create(request)
+
+    @PutMapping("{id}")
+    fun update(@RequestBody request: StandardAnswerUpdateRequest, @PathVariable id: Long) = service.update(request, id)
+
+    @GetMapping("{id}")
+    fun find(@PathVariable id: Long) = service.find(id)
+
+    @GetMapping
+    fun findAll(pageable: Pageable) = service.findAll(pageable)
+
+    @DeleteMapping("{id}")
+    fun delete(@PathVariable id: Long) = service.delete(id)
+}
