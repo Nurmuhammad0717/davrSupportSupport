@@ -120,20 +120,18 @@ open class SupportTelegramBot(
                         saveUserPhoneNumber(user, phoneNumber)
                         sendEnterYourFullName(user)
                     }
-                } else {
-                    sendSharePhoneMsg(user)
-                }
+                } else sendSharePhoneMsg(user)
             }
 
             UserStateEnum.SEND_FULL_NAME -> {
                 sendActionTyping(user)
                 if (message.hasText()) {
                     val text = message.text
-                    updateUserFullName(user, text)
-                    sendFullNameSavedMsg(user)
-                } else {
-                    sendEnterYourFullName(user)
-                }
+                    if (text.contains("^[A-Za-z]+( [A-Za-z]+)*$".toRegex())) {
+                        updateUserFullName(user, text)
+                        sendFullNameSavedMsg(user)
+                    } else sendEnterYourFullNameValid(user)
+                } else sendEnterYourFullName(user)
             }
 
             UserStateEnum.CHOOSE_LANG -> {
@@ -305,10 +303,7 @@ open class SupportTelegramBot(
 
             return fileInfoRepository.save(
                 FileInfo(
-                    fileName, uploadFileName,
-                    fileExtension,
-                    filePath,
-                    fileSize
+                    fileName, uploadFileName, fileExtension, filePath, fileSize
                 )
             )
         } catch (e: Exception) {
@@ -405,9 +400,9 @@ open class SupportTelegramBot(
         botMessageRepository.findByUserIdAndMessageId(chatId, messageId)?.let { message ->
             editedText?.let {
                 if (message.botMessageType == BotMessageType.TEXT) {
-                    message.originalText = message.text
+                    if (message.originalText == null)
+                        message.originalText = message.text
                     message.text = it
-                    botMessageRepository.save(message)
                 }
             }
 
@@ -416,11 +411,13 @@ open class SupportTelegramBot(
                         BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
                     )
                 ) {
-                    message.originalText = message.caption
+                    if (message.originalCaption == null)
+                        message.originalCaption = message.caption
                     message.caption = it
-                    botMessageRepository.save(message)
                 }
             }
+            message.hasRead = false
+            botMessageRepository.save(message)
         }
     }
 
@@ -490,8 +487,7 @@ open class SupportTelegramBot(
             message.hasSticker() -> Pair(BotMessageType.STICKER, message.sticker.fileId)
             message.hasAnimation() -> Pair(BotMessageType.ANIMATION, message.animation.fileId)
             message.hasDocument() -> Pair(
-                BotMessageType.DOCUMENT,
-                message.document.fileId + "$%%%$" + message.document.fileName
+                BotMessageType.DOCUMENT, message.document.fileId + "$%%%$" + message.document.fileName
             )
 
             else -> throw RuntimeException("un support type: $message")
@@ -549,8 +545,7 @@ open class SupportTelegramBot(
 
     open fun sendRateMsg(user: BotUser, session: Session) {
         val sendMessage = SendMessage(
-            user.id.toString(),
-            getMsg("OPERATOR_STOPPED_CHAT", user) + "\n" + getMsg("PLEASE_RATE_OPERATOR_WORK", user)
+            user.id.toString(), getMsg("OPERATOR_STOPPED_CHAT", user) + "\n" + getMsg("PLEASE_RATE_OPERATOR_WORK", user)
         )
         val btn1 = InlineKeyboardButton(getMsg("VERY_BAD", user))
         btn1.callbackData = "rateS1" + session.id
@@ -633,6 +628,14 @@ open class SupportTelegramBot(
 
     open fun sendEnterYourFullName(user: BotUser) {
         val sendMessage = SendMessage(user.id.toString(), getMsg("SEND_YOUR_FULL_NAME", user))
+        sendMessage.replyMarkup = ReplyKeyboardRemove(true)
+        this.execute(sendMessage)
+        user.state = UserStateEnum.SEND_FULL_NAME
+        userRepository.save(user)
+    }
+
+    open fun sendEnterYourFullNameValid(user: BotUser) {
+        val sendMessage = SendMessage(user.id.toString(), getMsg("SEND_YOUR_FULL_NAME_ONLY_LETTERS", user))
         sendMessage.replyMarkup = ReplyKeyboardRemove(true)
         this.execute(sendMessage)
         user.state = UserStateEnum.SEND_FULL_NAME

@@ -3,10 +3,12 @@ package uz.davrmobile.support.bot.backend
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import uz.davrmobile.support.repository.BaseRepository
 import java.util.*
+
 
 interface DiceRepository : BaseRepository<Dice>
 
@@ -16,7 +18,6 @@ interface UserRepository : JpaRepository<BotUser, Long> {
 }
 
 interface BotMessageRepository : BaseRepository<BotMessage> {
-
     fun findAllBySessionIdAndDeletedFalse(sessionId: Long): List<BotMessage>
     fun findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long): List<BotMessage>
 

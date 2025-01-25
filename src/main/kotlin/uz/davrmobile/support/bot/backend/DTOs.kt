@@ -126,7 +126,19 @@ data class SessionMessagesResponse(
     val sessionId: String,
     val from: UserResponse,
     val messages: List<BotMessageResponse>
-)
+) {
+    companion object {
+        fun toResponse(session: Session, unreadMessages: List<BotMessage>): SessionMessagesResponse {
+            return session.run {
+                SessionMessagesResponse(
+                    hashId,
+                    UserResponse.toResponse(user),
+                    unreadMessages.map { BotMessageResponse.toResponse(it) }
+                )
+            }
+        }
+    }
+}
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class BotMessageResponse(
@@ -136,10 +148,12 @@ data class BotMessageResponse(
     val replyMessageId: Int?,
     val text: String?,
     val caption: String?,
+    val date: Long,
     val fileHash: String?,
     val location: LocationResponse?,
     val contact: ContactResponse?,
-    val dice: DiceResponse?
+    val dice: DiceResponse?,
+    var edited: Boolean = false
 ) {
     companion object {
         fun toResponse(botMessage: BotMessage): BotMessageResponse {
@@ -148,10 +162,12 @@ data class BotMessageResponse(
                     hashId,
                     messageId, botMessageType,
                     replyMessageId, text, caption,
+                    createdDate!!.toInstant().epochSecond,
                     file?.hashId,
                     location?.let { LocationResponse.toResponse(it) },
                     contact?.let { ContactResponse.toResponse(it) },
-                    dice?.let { DiceResponse.toResponse(it) }
+                    dice?.let { DiceResponse.toResponse(it) },
+                    (botMessage.originalText != null || botMessage.originalCaption != null),
                 )
             }
         }
@@ -231,11 +247,10 @@ data class FileInfoResponse(
     val hashId: String,
     val extension: String,
     val size: Long,
-    val path: String
-) {
+    ) {
     companion object {
         fun toResponse(file: FileInfo): FileInfoResponse = FileInfoResponse(
-            file.id!!, file.uploadName, file.name, file.hashId, file.extension, file.size, file.path
+            file.id!!, file.uploadName, file.name, file.hashId, file.extension, file.size
         )
     }
 }
