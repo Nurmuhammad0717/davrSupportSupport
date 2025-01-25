@@ -451,13 +451,13 @@ open class SupportTelegramBot(
                         user.id.toString(), getMsg("THE_OPERATOR_WILL_ANSWER_YOU_SOON", user)
                     )
                 )
-                user.let { sessionRepository.save(Session(it, botId)) }
+                user.let { sessionRepository.save(Session(it, botId, language = user.languages.elementAt(0))) }
             } else {
                 session
             }
         } else {
             this.execute(SendMessage(user.id.toString(), getMsg("THE_OPERATOR_WILL_ANSWER_YOU_SOON", user)))
-            user.let { sessionRepository.save(Session(it, botId)) }
+            user.let { sessionRepository.save(Session(it, botId,language=user.languages.elementAt(0))) }
         }
     }
 

@@ -82,7 +82,7 @@ class UserServiceImpl(
 }
 
 interface MessageToOperatorService {
-    fun getSessions(): GetSessionsResponse
+    fun getSessions(request: GetSessionRequest, pageable: Pageable): GetSessionsResponse
     fun getSessionMessages(id: String): SessionMessagesResponse
     fun getUnreadMessages(id: String): SessionMessagesResponse
     fun sendMessage(message: OperatorSentMsgRequest)
@@ -98,16 +98,18 @@ class MessageToOperatorServiceImpl(
 
 ) : MessageToOperatorService {
 
-    override fun getSessions(): GetSessionsResponse {
+    override fun getSessions(request: GetSessionRequest, pageable: Pageable): GetSessionsResponse {
         val userId = getUserId()
         val botIds: MutableList<Long> = mutableListOf()
+
+        if(request.languages.isEmpty())
+            request.languages.addAll(mutableListOf(LanguageEnum.EN,LanguageEnum.RU,LanguageEnum.UZ))
 
         botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE).map {
             if (it.operatorIds.contains(userId)) botIds.add(it.id!!)
         }
 
-        val waitingSessions =
-            sessionRepository.findAllByBotIdInAndDeletedFalseAndStatus(botIds, SessionStatusEnum.WAITING)
+        val waitingSessions = sessionRepository.findAllByBotIdInAndDeletedFalseAndStatusAndLanguageIn(botIds, SessionStatusEnum.WAITING,request.languages,pageable)
         val thisUsersBusySessions = sessionRepository.findAllByOperatorIdAndStatus(userId, SessionStatusEnum.BUSY)
 
         val busySessionResponse = thisUsersBusySessions.map {

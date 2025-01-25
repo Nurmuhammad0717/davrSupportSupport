@@ -3,7 +3,10 @@ package uz.davrmobile.support.bot.backend
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
+import org.intellij.lang.annotations.Language
+import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
+import org.springframework.data.domain.Page
 import org.springframework.data.jpa.domain.AbstractPersistable_.id
 import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
 import uz.davrmobile.support.entity.BaseEntity
@@ -78,7 +81,7 @@ data class BotResponse(
 
 data class GetSessionsResponse(
     val myConnectedSessions: List<SessionResponse>,
-    val waitingSessions: List<SessionResponse>
+    val waitingSessions: Page<SessionResponse>
 )
 
 
@@ -99,7 +102,7 @@ data class SessionResponse(
     val botId: String,
     val status: SessionStatusEnum,
     val newMessagesCount: Int,
-    val lang: String,
+    val language: LanguageEnum,
     val date: Long
 ) {
     companion object {
@@ -111,7 +114,7 @@ data class SessionResponse(
                     bot.hashId,
                     status!!,
                     messageCount,
-                    user.languages.elementAt(0).toString(),
+                    language,
                     createdDate!!.toInstant().epochSecond
                 )
             }
@@ -236,3 +239,7 @@ data class FileInfoResponse(
         )
     }
 }
+
+data class GetSessionRequest(
+   @NotNull var languages: MutableList<LanguageEnum>,
+)
