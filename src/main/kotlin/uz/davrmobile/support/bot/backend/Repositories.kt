@@ -48,6 +48,8 @@ interface SessionRepository : BaseRepository<Session> {
 
     fun findAllByStatusAndDeletedFalse(status: SessionStatusEnum): List<Session>
 
+    fun findAllByOperatorId(operatorId: Long, pageable: Pageable): Page<Session>
+
     override fun findByIdAndDeletedFalse(id: Long): Session?
 
     @Query(
@@ -168,6 +170,18 @@ interface SessionRepository : BaseRepository<Session> {
     fun getSessionByStatus(status: SessionStatusEnum, pageable: Pageable): Page<Session>
     fun findByHashId(hashId: String): Session?
     fun getAvgRate(): Short
+
+    @Query("""
+        select 
+        s.operator_id,
+        count(s.id),
+        count(m.id),
+        avg(s.rate),
+          from session s join bot_message m on s.id = m.session_id
+          where s.operator_id = :operatorId and between(s.created_date BETWEEN :fromDate)
+    """,
+        nativeQuery = true)
+    fun findBetweenDates(startDate: Date, endDate: Date, operatorId: Long): SessionInfoByOperator
 
 }
 

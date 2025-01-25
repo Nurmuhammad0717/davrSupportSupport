@@ -52,6 +52,9 @@ interface StandardAnswerService {
     fun findAll(pageable: Pageable): Page<StandardAnswerResponse>
     fun delete(id: Long)
 }
+interface StatisticService {
+    fun getSessionByOperator(operatorId: Long, startDate: Date, endDate: Date): SessionInfoByOperator
+}
 
 @Service
 class UserServiceImpl(
@@ -95,6 +98,7 @@ interface MessageToOperatorService {
     fun getUnreadMessages(id: String): SessionMessagesResponse
     fun sendMessage(message: OperatorSentMsgRequest)
     fun closeSession(sessionHash: String)
+    fun editMessage(message: OperatorEditMsgRequest)
 }
 
 @Service
@@ -345,6 +349,35 @@ class MessageToOperatorServiceImpl(
             SupportTelegramBot.findBotById(it.botId)?.sendRateMsg(it.user, it)
         }
     }
+
+    override fun editMessage(message: OperatorEditMsgRequest) {
+        val msg = botMessageRepository.findByIdAndDeletedFalse(message.messageId!!) ?: throw MessageNotFoundException()
+        editMessage(message.text,message.caption,msg)
+    }
+
+
+    fun editMessage(text: String?, caption: String?, msg: BotMessage){
+            text?.let {
+                if (msg.botMessageType == BotMessageType.TEXT) {
+                    if (msg.originalText == null)
+                        msg.originalText = msg.text
+                    msg.text = it
+                }
+            }
+
+            caption?.let {
+                if (msg.botMessageType in listOf(
+                        BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
+                    )
+                ) {
+                    if (msg.originalCaption == null)
+                        msg.originalCaption = msg.caption
+                    msg.caption = it
+                }
+            }
+            msg.hasRead = false
+            botMessageRepository.save(msg)
+    }
 }
 
 @Service
@@ -473,4 +506,17 @@ class StandardAnswerServiceImpl(
         repository.existsByText(id, text).takeIf { it }
             ?.let { throw StandardAnswerAlreadyExistsException() }
     }
+}
+
+@Service
+class StatisticServiceImpl(private val sessionRepository: SessionRepository) :StatisticService {
+
+    override fun getSessionByOperator(
+        operatorId: Long,
+        startDate: Date,
+        endDate: Date
+    ): SessionInfoByOperator {
+        return sessionRepository.findBetweenDates(startDate, endDate, operatorId )
+    }
+
 }

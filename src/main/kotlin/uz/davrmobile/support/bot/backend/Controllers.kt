@@ -7,6 +7,7 @@ import uz.davrmobile.support.bot.bot.BotService
 import uz.davrmobile.support.util.IsAdmin
 import uz.davrmobile.support.util.IsModerator
 import uz.davrmobile.support.util.IsUser
+import java.util.*
 import javax.servlet.http.HttpServletResponse
 import javax.validation.Valid
 
@@ -100,4 +101,38 @@ class FileInfoController(
     @IsModerator
     @GetMapping
     fun findAll(pageable: Pageable) = fileInfoService.findAll(pageable)
+}
+
+@RestController
+@RequestMapping("standard-answers")
+class StandardAnswerController(
+    private val service: StandardAnswerService
+){
+
+    @PostMapping
+    fun create(@RequestBody request: StandardAnswerRequest) = service.create(request)
+
+    @PutMapping("{id}")
+    fun update(@RequestBody request: StandardAnswerUpdateRequest, @PathVariable id: Long) = service.update(request, id)
+
+    @GetMapping("{id}")
+    fun find(@PathVariable id: Long) = service.find(id)
+
+    @GetMapping
+    fun findAll(pageable: Pageable) = service.findAll(pageable)
+
+    @DeleteMapping("{id}")
+    fun delete(@PathVariable id: Long) = service.delete(id)
+}
+
+@RestController
+@RequestMapping("statistics")
+class StatisticController(
+    private val statisticService: StatisticService
+){
+    @GetMapping
+    fun getSessionInfoByOperator(
+        @RequestParam("startDate") startDate: Date,
+        @RequestParam("endDate") endDate: Date,
+        @RequestParam("operatorId") operatorId: Long): SessionInfoByOperator = statisticService.getSessionByOperator(operatorId, startDate, endDate)
 }

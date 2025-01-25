@@ -282,3 +282,18 @@ data class StandardAnswerResponse(
 data class GetSessionRequest(
     @NotNull var languages: MutableList<LanguageEnum>,
 )
+
+interface SessionInfoByOperator {
+    val operatorId: Long
+    val sessionCount: Int
+    val messageCount: Int
+    val avgRate: Double
+}
+
+data class OperatorEditMsgRequest(
+    val sessionId: String?,
+    val type: BotMessageType?,
+    val messageId: Long?,
+    @Nullable val text: String?,
+    @Nullable val caption: String?,
+)
