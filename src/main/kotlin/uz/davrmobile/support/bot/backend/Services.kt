@@ -403,56 +403,56 @@ class MessageToOperatorServiceImpl(
 
     override fun editMessage(message: OperatorEditMsgRequest) {
         val msg = botMessageRepository.findByIdAndDeletedFalse(message.messageId!!) ?: throw MessageNotFoundException()
-        editMessage(message.text,message.caption,msg)
+        editMessage(message.text, message.caption, msg)
 
     }
 
 
-    override fun editMessage(text: String?, caption: String?, msg: BotMessage){
-            text?.let {
-                if (msg.botMessageType == BotMessageType.TEXT) {
-                    if (msg.originalText == null)
-                        msg.originalText = msg.text
-                    msg.text = it
+    override fun editMessage(text: String?, caption: String?, msg: BotMessage) {
+        text?.let {
+            if (msg.botMessageType == BotMessageType.TEXT) {
+                if (msg.originalText == null)
+                    msg.originalText = msg.text
+                msg.text = it
 
-                    if(msg.user==null) {
-                        val session = msg.session
-                        val userId = session.user.id.toString()
-                        SupportTelegramBot.findBotById(session.botId)?.let { bot ->
-                            val send = EditMessageText()
-                            send.chatId = userId
-                            send.messageId = msg.messageId
-                            send.text = it
-                            bot.execute(send)
-                        }
+                if (msg.user == null) {
+                    val session = msg.session
+                    val userId = session.user.id.toString()
+                    SupportTelegramBot.findBotById(session.botId)?.let { bot ->
+                        val send = EditMessageText()
+                        send.chatId = userId
+                        send.messageId = msg.messageId
+                        send.text = it
+                        bot.execute(send)
                     }
                 }
             }
+        }
 
-            caption?.let {
-                if (msg.botMessageType in listOf(
-                        BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
-                    )
-                ) {
-                    if (msg.originalCaption == null)
-                        msg.originalCaption = msg.caption
-                    msg.caption = it
+        caption?.let {
+            if (msg.botMessageType in listOf(
+                    BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
+                )
+            ) {
+                if (msg.originalCaption == null)
+                    msg.originalCaption = msg.caption
+                msg.caption = it
 
-                    if(msg.user==null) {
-                        val session = msg.session
-                        val userId = session.user.id.toString()
-                        SupportTelegramBot.findBotById(session.botId)?.let { bot ->
-                            val send = EditMessageCaption()
-                            send.chatId = userId
-                            send.messageId = msg.messageId
-                            send.caption = it
-                            bot.execute(send)
-                        }
+                if (msg.user == null) {
+                    val session = msg.session
+                    val userId = session.user.id.toString()
+                    SupportTelegramBot.findBotById(session.botId)?.let { bot ->
+                        val send = EditMessageCaption()
+                        send.chatId = userId
+                        send.messageId = msg.messageId
+                        send.caption = it
+                        bot.execute(send)
                     }
                 }
             }
-            msg.hasRead = false
-            botMessageRepository.save(msg)
+        }
+        msg.hasRead = false
+        botMessageRepository.save(msg)
     }
 
     override fun takeSession(id: String) {
@@ -568,7 +568,7 @@ class StandardAnswerServiceImpl(
     override fun update(request: StandardAnswerUpdateRequest, id: Long): StandardAnswerResponse {
         request.text?.let { existsByText(id, it) }
         val answer = repository.findByIdAndDeletedFalse(id) ?: throw StandardAnswerNotFoundException()
-        return StandardAnswerResponse.toResponse(repository.save(StandardAnswerUpdateRequest.toEntity(request,answer)))
+        return StandardAnswerResponse.toResponse(repository.save(StandardAnswerUpdateRequest.toEntity(request, answer)))
     }
 
     override fun find(id: Long): StandardAnswerResponse {
@@ -590,7 +590,7 @@ class StandardAnswerServiceImpl(
     }
 
     private fun existsByText(id: Long, text: String) {
-        repository.existsByTextAndIdNot(text,id).takeIf { it }
+        repository.existsByTextAndIdNot(text, id).takeIf { it }
             ?.let { throw StandardAnswerAlreadyExistsException() }
     }
 }

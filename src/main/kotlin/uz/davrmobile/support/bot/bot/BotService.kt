@@ -29,7 +29,7 @@ class BotService(
 ) {
 
     fun createBot(req: TokenRequest) {
-        if (botRepository.existsByToken((req.token))) {
+        if (!botRepository.existsByToken((req.token))) {
             val supportTelegramBot = SupportTelegramBot(
                 "",
                 req.token,
