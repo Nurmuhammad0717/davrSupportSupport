@@ -37,8 +37,12 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
 }
 
 interface SessionRepository : BaseRepository<Session> {
-
-    fun findAllByBotIdInAndDeletedFalseAndStatusAndLanguageIn(botIds: List<Long>, status: SessionStatusEnum,languages: List<LanguageEnum>,pageable: Pageable): Page<Session>
+    fun findAllByBotIdInAndDeletedFalseAndStatusAndLanguageIn(
+        botIds: List<Long>,
+        status: SessionStatusEnum,
+        languages: List<LanguageEnum>,
+        pageable: Pageable
+    ): Page<Session>
 
     fun findAllByOperatorIdAndStatus(operatorId: Long, status: SessionStatusEnum): List<Session>
 
@@ -165,6 +169,7 @@ interface SessionRepository : BaseRepository<Session> {
     fun getSessionByOperatorId(operatorId: Long, pageable: Pageable): Page<Session>
     fun getSessionByStatus(status: SessionStatusEnum, pageable: Pageable): Page<Session>
     fun findByHashId(hashId: String): Session?
+    fun getAvgRate(): Short
 
     @Query("""
         select 
@@ -225,9 +230,12 @@ interface OperatorLanguageRepository : BaseRepository<OperatorLanguage>
 
 interface StandardAnswerRepository : BaseRepository<StandardAnswer> {
     fun existsByText(text: String): Boolean
-    @Query("""
+
+    @Query(
+        """
         select exists (select a from StandardAnswer a where a.id != :id and a.text = :text)
-    """)
+    """
+    )
     fun existsByText(id: Long, text: String): Boolean
 }
 

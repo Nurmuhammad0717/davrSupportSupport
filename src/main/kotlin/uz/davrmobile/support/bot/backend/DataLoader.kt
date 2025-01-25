@@ -2,8 +2,6 @@ package uz.davrmobile.support.bot.backend
 
 import org.springframework.boot.CommandLineRunner
 import org.springframework.context.MessageSource
-import org.springframework.context.annotation.Bean
-import org.springframework.context.support.ResourceBundleMessageSource
 import org.springframework.stereotype.Component
 import uz.davrmobile.support.bot.bot.BotService
 import uz.davrmobile.support.bot.bot.SupportTelegramBot

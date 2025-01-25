@@ -77,6 +77,7 @@ enum class BotStatusEnum {
     STOPPED,
     ACTIVE,
 }
+
 enum class MessageEffects(val id: String) {
     FIRE("5104841245755180586"),
     LIKE("5107584321108051014"),

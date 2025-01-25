@@ -39,6 +39,7 @@ interface UserService {
 
 interface FileInfoService {
     fun download(hashId: String, response: HttpServletResponse)
+    fun show(hashId: String, response: HttpServletResponse)
     fun find(hashId: String): FileInfoResponse
     fun findAll(pageable: Pageable): Page<FileInfoResponse>
     fun upload(multipartFileList: MutableList<MultipartFile>): List<FileInfoResponse>
@@ -419,12 +420,27 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
         val path: Path = Paths.get(fileDB.path).normalize()
         val file = path.toFile()
         response.contentType = Files.probeContentType(path) ?: "application/octet-stream"
-        response.setHeader("Content-Disposition", "attachment; filename=${file.name}")
+        response.setHeader("Content-Disposition", "attachment; filename=\"${file.name}\"")
         response.setContentLengthLong(file.length())
 
         FileInputStream(file).use { inputStream ->
             response.outputStream.use { outputStream ->
-                inputStream.copyTo(outputStream)
+                inputStream.copyTo(outputStream, bufferSize = 64 * 1024)
+            }
+        }
+    }
+
+    override fun show(hashId: String, response: HttpServletResponse) {
+        val fileDB = fileInfoRepository.findByHashId(hashId) ?: throw FileNotFoundException()
+        val path: Path = Paths.get(fileDB.path).normalize()
+        val file = path.toFile()
+        response.contentType = Files.probeContentType(path) ?: "application/octet-stream"
+        response.setHeader("Content-Disposition", "inline; filename=\"${file.name}\"")
+        response.setContentLengthLong(file.length())
+
+        FileInputStream(file).use { inputStream ->
+            response.outputStream.use { outputStream ->
+                inputStream.copyTo(outputStream, bufferSize = 64 * 1024)
             }
         }
     }

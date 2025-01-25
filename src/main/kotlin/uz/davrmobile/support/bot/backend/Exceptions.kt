@@ -83,9 +83,11 @@ class FileNotFoundException : DBusinessException() {
 class OperatorLanguageNotFoundException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.OPERATOR_LANGUAGE_NOT_FOUND
 }
+
 class StandardAnswerNotFoundException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.STANDARD_ANSWER_NOT_FOUND
 }
+
 class StandardAnswerAlreadyExistsException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.STANDARD_ANSWER_ALREADY_EXISTS
 }

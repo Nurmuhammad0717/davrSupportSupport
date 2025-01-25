@@ -2,17 +2,10 @@ package uz.davrmobile.support.bot.backend
 
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
-import org.intellij.lang.annotations.Language
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
 import org.springframework.data.domain.Page
-import org.springframework.data.jpa.domain.AbstractPersistable_.id
-import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
-import uz.davrmobile.support.entity.BaseEntity
 import java.util.*
-import javax.persistence.Column
-import javax.persistence.Entity
 
 data class BaseMessage(val code: Int, val message: String?)
 
@@ -247,7 +240,7 @@ data class FileInfoResponse(
     val hashId: String,
     val extension: String,
     val size: Long,
-    ) {
+) {
     companion object {
         fun toResponse(file: FileInfo): FileInfoResponse = FileInfoResponse(
             file.id!!, file.uploadName, file.name, file.hashId, file.extension, file.size
@@ -257,34 +250,37 @@ data class FileInfoResponse(
 
 data class StandardAnswerRequest(
     val text: String
-){
-    companion object{
+) {
+    companion object {
         fun toEntity(request: StandardAnswerRequest): StandardAnswer = StandardAnswer(text = request.text)
     }
 }
+
 data class StandardAnswerUpdateRequest(
     val text: String?
-){
-    companion object{
-        fun toEntity(request: StandardAnswerUpdateRequest, entity: StandardAnswer): StandardAnswer{
+) {
+    companion object {
+        fun toEntity(request: StandardAnswerUpdateRequest, entity: StandardAnswer): StandardAnswer {
             request.run {
-                text?.let {entity.text = it}
+                text?.let { entity.text = it }
             }
             return entity
         }
     }
 }
+
 data class StandardAnswerResponse(
     val id: Long,
     val text: String
-){
-    companion object{
-        fun toResponse(answer: StandardAnswer): StandardAnswerResponse = StandardAnswerResponse(answer.id!!, answer.text)
+) {
+    companion object {
+        fun toResponse(answer: StandardAnswer): StandardAnswerResponse =
+            StandardAnswerResponse(answer.id!!, answer.text)
     }
 }
 
 data class GetSessionRequest(
-   @NotNull var languages: MutableList<LanguageEnum>,
+    @NotNull var languages: MutableList<LanguageEnum>,
 )
 
 interface SessionInfoByOperatorResponse {

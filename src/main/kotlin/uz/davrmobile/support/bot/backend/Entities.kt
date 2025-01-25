@@ -9,15 +9,6 @@ import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
 import uz.davrmobile.support.entity.BaseEntity
 import java.util.*
 
-//@MappedSuperclass
-//@EntityListeners(AuditingEntityListener::class)
-//class BaseEntity(
-//    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
-//    @CreatedDate @Temporal(TemporalType.TIMESTAMP) var createdDate: Date? = null,
-//    @LastModifiedDate @Temporal(TemporalType.TIMESTAMP) var modifiedDate: Date? = null,
-//    @Column(nullable = false) @ColumnDefault(value = "false") var deleted: Boolean = false
-//)
-
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener::class)
 class BaseUserEntity(
@@ -157,9 +148,9 @@ class FileInfo(
 class OperatorLanguage(
     val operatorId: Long,
     @Enumerated(EnumType.STRING) val language: LanguageEnum
-): BaseEntity()
+) : BaseEntity()
 
 @Entity
 class StandardAnswer(
     @Column(nullable = false, unique = true) var text: String,
-): BaseEntity()
+) : BaseEntity()

@@ -255,62 +255,50 @@ open class SupportTelegramBot(
         } else null
     }
 
-    private fun newSessionMsg(update: Update, session: Session, user: BotUser): BotMessage {
+    private fun newSessionMsg(update: Update, session: Session, user: BotUser): BotMessage? {
         val message = update.message
-        val messageReplyId = if (message.isReply) message.replyToMessage.messageId else null
-        val typeAndFileId = determineMessageType(message)
-        val location = saveLocation(message)
-        val contact = saveContact(message)
-        val dice = saveDice(message)
+        return determineMessageType(message)?.let { typeAndFileId ->
+            val messageReplyId = if (message.isReply) message.replyToMessage.messageId else null
+            val location = saveLocation(message)
+            val contact = saveContact(message)
+            val dice = saveDice(message)
 
-        val fileInfo = typeAndFileId.second?.let { fileId ->
-            downloadAndSaveFile(fileId, user)
-        }
+            val fileInfo = typeAndFileId.second?.let { downloadAndSaveFile(it) }
 
-        return botMessageRepository.save(
-            BotMessage(
-                user = user,
-                session = session,
-                messageId = message.messageId,
-                replyMessageId = messageReplyId,
-                botMessageType = typeAndFileId.first,
-                text = message.text,
-                caption = message.caption,
-                file = fileInfo,
-                location = location,
-                contact = contact,
-                dice = dice
-            )
-        )
-    }
-
-    private fun downloadAndSaveFile(fileIdAndFileName: String, user: BotUser): FileInfo? {
-        val uploadFileName = fileIdAndFileName.substringAfter("$%%%$")
-        val fileId = fileIdAndFileName.substringBefore("$%%%$")
-        try {
-            val fileFromTelegram = this.execute(GetFile(fileId))
-            val inputStream = this.downloadFileAsStream(fileFromTelegram)
-            val fileSize = fileFromTelegram.fileSize
-            var fileName = fileFromTelegram.filePath.substringAfterLast("/")
-            val fileExtension = fileName.substringAfterLast(".")
-            fileName = fileName.substringBeforeLast(".") + randomHashId() + "." + fileExtension
-            val filePath = "./files/${LocalDate.now()}/$fileName"
-            Paths.get(filePath).parent?.let { directoryPath ->
-                if (!Files.exists(directoryPath)) Files.createDirectories(directoryPath)
-            }
-            FileOutputStream(filePath).use { outputStream ->
-                inputStream.copyTo(outputStream)
-            }
-
-            return fileInfoRepository.save(
-                FileInfo(
-                    fileName, uploadFileName, fileExtension, filePath, fileSize
+            botMessageRepository.save(
+                BotMessage(
+                    user = user,
+                    session = session,
+                    messageId = message.messageId,
+                    replyMessageId = messageReplyId,
+                    botMessageType = typeAndFileId.first,
+                    text = message.text,
+                    caption = message.caption,
+                    file = fileInfo,
+                    location = location,
+                    contact = contact,
+                    dice = dice
                 )
             )
-        } catch (e: Exception) {
-            this.execute(SendMessage(user.id.toString(), getMsg("MAX_FILE_SIZE_20_MB", user)))
-            return null
         }
+    }
+
+    private fun downloadAndSaveFile(fileIdAndFileName: String): FileInfo {
+        val uploadFileName = fileIdAndFileName.substringAfter("$%%%$")
+        val fileId = fileIdAndFileName.substringBefore("$%%%$")
+
+        val fileFromTelegram = this.execute(GetFile(fileId))
+        val inputStream = this.downloadFileAsStream(fileFromTelegram)
+        val fileSize = fileFromTelegram.fileSize
+        var fileName = fileFromTelegram.filePath.substringAfterLast("/")
+        val fileExtension = fileName.substringAfterLast(".")
+        fileName = fileName.substringBeforeLast(".") + randomHashId() + "." + fileExtension
+        val filePath = "./files/${LocalDate.now()}/$fileName"
+        Paths.get(filePath).parent?.let { directoryPath ->
+            if (!Files.exists(directoryPath)) Files.createDirectories(directoryPath)
+        }
+        FileOutputStream(filePath).use { outputStream -> inputStream.copyTo(outputStream, bufferSize = 64 * 1024) }
+        return fileInfoRepository.save(FileInfo(fileName, uploadFileName, fileExtension, filePath, fileSize))
     }
 
     private fun saveUserPhoneNumber(user: BotUser, phoneNumber: String) {
@@ -436,7 +424,7 @@ open class SupportTelegramBot(
             }
         } else {
             this.execute(SendMessage(user.id.toString(), getMsg("THE_OPERATOR_WILL_ANSWER_YOU_SOON", user)))
-            user.let { sessionRepository.save(Session(it, botId,language=user.languages.elementAt(0))) }
+            user.let { sessionRepository.save(Session(it, botId, language = user.languages.elementAt(0))) }
         }
     }
 
@@ -451,7 +439,7 @@ open class SupportTelegramBot(
         }
     }
 
-    open fun determineMessageType(message: Message): Pair<BotMessageType, String?> {
+    open fun determineMessageType(message: Message): Pair<BotMessageType, String?>? {
         return when {
             message.hasText() -> Pair(BotMessageType.TEXT, null)
             message.hasPhoto() -> {
@@ -468,11 +456,16 @@ open class SupportTelegramBot(
             message.hasDice() -> Pair(BotMessageType.DICE, null)
             message.hasSticker() -> Pair(BotMessageType.STICKER, message.sticker.fileId)
             message.hasAnimation() -> Pair(BotMessageType.ANIMATION, message.animation.fileId)
-            message.hasDocument() -> Pair(
-                BotMessageType.DOCUMENT, message.document.fileId + "$%%%$" + message.document.fileName
-            )
+            message.hasDocument() -> {
+                if (message.document.fileSize >= 2e+7) {
+                    //TODO send only 20 mb msg
+                    null
+                } else Pair(BotMessageType.DOCUMENT, message.document.fileId + "$%%%$" + message.document.fileName)
+            }
 
-            else -> throw RuntimeException("un support type: $message")
+            else -> {
+                null
+            }
         }
     }
 
