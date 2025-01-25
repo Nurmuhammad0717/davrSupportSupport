@@ -10,6 +10,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendChatAction
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.Message
+import org.telegram.telegrambots.meta.api.objects.MessageEntity
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup
@@ -257,7 +258,7 @@ open class SupportTelegramBot(
 
     private fun newSessionMsg(update: Update, session: Session, user: BotUser): BotMessage? {
         val message = update.message
-        return determineMessageType(message)?.let { typeAndFileId ->
+        return determineMessageType(message, user)?.let { typeAndFileId ->
             val messageReplyId = if (message.isReply) message.replyToMessage.messageId else null
             val location = saveLocation(message)
             val contact = saveContact(message)
@@ -274,7 +275,7 @@ open class SupportTelegramBot(
                     botMessageType = typeAndFileId.first,
                     text = message.text,
                     caption = message.caption,
-                    file = fileInfo,
+                    files = fileInfo?.let { listOf(it) },
                     location = location,
                     contact = contact,
                     dice = dice
@@ -387,7 +388,7 @@ open class SupportTelegramBot(
     @Transactional
     open fun editMessage(chatId: Long, messageId: Int, editedText: String?, editedCaption: String?) {
         botMessageRepository.findByUserIdAndMessageId(chatId, messageId)?.let { message ->
-            messageToOperatorServiceImpl.editMessage(editedText,editedCaption,message)
+            messageToOperatorServiceImpl.editMessage(editedText, editedCaption, message)
         }
     }
 
@@ -439,7 +440,7 @@ open class SupportTelegramBot(
         }
     }
 
-    open fun determineMessageType(message: Message): Pair<BotMessageType, String?>? {
+    open fun determineMessageType(message: Message, user: BotUser): Pair<BotMessageType, String?>? {
         return when {
             message.hasText() -> Pair(BotMessageType.TEXT, null)
             message.hasPhoto() -> {
@@ -458,7 +459,7 @@ open class SupportTelegramBot(
             message.hasAnimation() -> Pair(BotMessageType.ANIMATION, message.animation.fileId)
             message.hasDocument() -> {
                 if (message.document.fileSize >= 2e+7) {
-                    //TODO send only 20 mb msg
+                    sendMaxFileSize20MBWarningMsg(user)
                     null
                 } else Pair(BotMessageType.DOCUMENT, message.document.fileId + "$%%%$" + message.document.fileName)
             }
@@ -467,6 +468,10 @@ open class SupportTelegramBot(
                 null
             }
         }
+    }
+
+    private fun sendMaxFileSize20MBWarningMsg(user: BotUser) {
+        this.execute(SendMessage(user.id.toString(), getMsg("MAX_FILE_SIZE_20_MB", user)))
     }
 
     @Transactional

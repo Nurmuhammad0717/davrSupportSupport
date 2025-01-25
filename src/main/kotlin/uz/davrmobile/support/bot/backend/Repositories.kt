@@ -171,7 +171,8 @@ interface SessionRepository : BaseRepository<Session> {
     fun findByHashId(hashId: String): Session?
     fun getAvgRate(): Short
 
-    @Query("""
+    @Query(
+        """
         select 
         s.operator_id,
         count(s.id),
@@ -180,7 +181,8 @@ interface SessionRepository : BaseRepository<Session> {
           from session s join bot_message m on s.id = m.session_id
           where s.operator_id = :operatorId and between(s.created_date BETWEEN :fromDate)
     """,
-        nativeQuery = true)
+        nativeQuery = true
+    )
     fun findBetweenDates(startDate: Date, endDate: Date, operatorId: Long): SessionInfoByOperator
 
 }
@@ -197,10 +199,13 @@ interface BotRepository : BaseRepository<Bot> {
     fun findByHashIdAndDeletedFalse(id: String): Bot?
     fun findByIdAndStatusAndDeletedFalse(id: Long, status: BotStatusEnum): Bot?
     fun findAllByDeletedFalse(): List<Bot>
+    fun existsByToken(token: String): Boolean
 }
 
 interface FileInfoRepository : BaseRepository<FileInfo> {
     fun findByHashId(hashId: String): FileInfo?
+    fun findAllByHashId(hashId: String): MutableList<FileInfo>
+    fun findAllByHashIdIn(hashIds: List<String>): MutableList<FileInfo>
 }
 
 interface OperatorLanguageRepository : BaseRepository<OperatorLanguage>

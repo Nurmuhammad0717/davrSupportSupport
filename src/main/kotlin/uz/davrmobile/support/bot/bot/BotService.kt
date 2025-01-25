@@ -25,30 +25,34 @@ class BotService(
     private val messageSource: MessageSource,
     private val botRepository: BotRepository,
     private val fileInfoRepository: FileInfoRepository,
+    private val messageToOperatorServiceImpl: MessageToOperatorServiceImpl,
 ) {
 
     fun createBot(req: TokenRequest) {
-        val supportTelegramBot = SupportTelegramBot(
-            "",
-            req.token,
-            -1L,
-            userRepository,
-            botMessageRepository,
-            locationRepository,
-            contactRepository,
-            diceRepository,
-            sessionRepository,
-            messageSource,
-            fileInfoRepository,
-            botRepository
-        )
-        val me = supportTelegramBot.meAsync.get()
-        val savedBot = botRepository.save(Bot(req.token, me.userName, me.firstName))
-        supportTelegramBot.botId = savedBot.id!!
-        supportTelegramBot.username = me.userName
-        registerBot(supportTelegramBot)
-        activeBots[req.token] = supportTelegramBot
-        setDefaultBotCommands(supportTelegramBot)
+        if (botRepository.existsByToken((req.token))) {
+            val supportTelegramBot = SupportTelegramBot(
+                "",
+                req.token,
+                -1L,
+                userRepository,
+                botMessageRepository,
+                locationRepository,
+                contactRepository,
+                diceRepository,
+                sessionRepository,
+                messageSource,
+                fileInfoRepository,
+                botRepository,
+                messageToOperatorServiceImpl
+            )
+            val me = supportTelegramBot.meAsync.get()
+            val savedBot = botRepository.save(Bot(req.token, me.userName, me.firstName))
+            supportTelegramBot.botId = savedBot.id!!
+            supportTelegramBot.username = me.userName
+            registerBot(supportTelegramBot)
+            activeBots[req.token] = supportTelegramBot
+            setDefaultBotCommands(supportTelegramBot)
+        }
     }
 
     fun registerBot(bot: SupportTelegramBot) {

@@ -52,6 +52,7 @@ interface StandardAnswerService {
     fun findAll(pageable: Pageable): Page<StandardAnswerResponse>
     fun delete(id: Long)
 }
+
 interface StatisticService {
     fun getSessionByOperator(operatorId: Long, startDate: Date, endDate: Date): SessionInfoByOperator
 }
@@ -99,6 +100,7 @@ interface MessageToOperatorService {
     fun sendMessage(message: OperatorSentMsgRequest)
     fun closeSession(sessionHash: String)
     fun editMessage(message: OperatorEditMsgRequest)
+    fun takeSession(id: String)
 }
 
 @Service
@@ -106,7 +108,9 @@ class MessageToOperatorServiceImpl(
     private val sessionRepository: SessionRepository,
     private val botMessageRepository: BotMessageRepository,
     private val botRepository: BotRepository,
-    private val fileInfoRepository: FileInfoRepository
+    private val fileInfoRepository: FileInfoRepository,
+    private val contactRepository: ContactRepository,
+    private val locationRepository: LocationRepository
 
 ) : MessageToOperatorService {
 
@@ -114,18 +118,18 @@ class MessageToOperatorServiceImpl(
         val userId = getUserId()
         val botIds: MutableList<Long> = mutableListOf()
 
-        if (request.languages.isEmpty())
-            request.languages.addAll(mutableListOf(LanguageEnum.EN, LanguageEnum.RU, LanguageEnum.UZ))
+        if (request.languages.isEmpty()) request.languages.addAll(
+            mutableListOf(
+                LanguageEnum.EN, LanguageEnum.RU, LanguageEnum.UZ
+            )
+        )
 
         botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE).map {
             if (it.operatorIds.contains(userId)) botIds.add(it.id!!)
         }
 
         val waitingSessions = sessionRepository.findAllByBotIdInAndDeletedFalseAndStatusAndLanguageIn(
-            botIds,
-            SessionStatusEnum.WAITING,
-            request.languages,
-            pageable
+            botIds, SessionStatusEnum.WAITING, request.languages, pageable
         )
         val thisUsersBusySessions = sessionRepository.findAllByOperatorIdAndStatus(userId, SessionStatusEnum.BUSY)
 
@@ -167,13 +171,10 @@ class MessageToOperatorServiceImpl(
 
     @Transactional
     override fun sendMessage(message: OperatorSentMsgRequest) {
+        val operatorId = getUserId()
         val sessionHashId = message.sessionId!!
         sessionRepository.findByHashId(sessionHashId)?.let { session ->
-            if (session.operatorId == null) {
-                session.operatorId = getUserId()
-                session.status = SessionStatusEnum.BUSY
-                sessionRepository.save(session)
-            } else if (session.operatorId != getUserId()) throw BusySessionException()
+            if (session.operatorId != getUserId()) throw BusySessionException()
             val user = session.user
             val userId = user.id.toString()
             botRepository.findByIdAndDeletedFalse(session.botId)?.let { bot ->
@@ -183,25 +184,24 @@ class MessageToOperatorServiceImpl(
                             message.text?.let { text ->
                                 val send = SendMessage(userId, text)
                                 send.replyToMessageId = message.replyMessageId
-                                absSender.execute(send)
+                                val ex = absSender.execute(send)
+                                newSessionMsg(message, session, operatorId, ex.messageId)
                             } ?: throw BadCredentialsException()
                         }
 
                         BotMessageType.VIDEO, BotMessageType.PHOTO, BotMessageType.VOICE, BotMessageType.AUDIO, BotMessageType.DOCUMENT -> {
-                            message.fileId?.let { fileHashIds ->
+                            message.fileIds?.let { fileHashIds ->
                                 val inputMediaList: MutableList<InputMedia> = mutableListOf()
                                 for (fileHashId in fileHashIds) {
                                     val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
                                     inputMediaList.add(getInputMediaByFileInfo(fileInfo, message.caption))
                                 }
-                                sendMediaGroup(
-                                    userId, inputMediaList, absSender, message.caption, message.replyMessageId
-                                )
+                                sendMediaGroup(userId, inputMediaList, absSender, message, session, operatorId)
                             } ?: throw BadCredentialsException()
                         }
 
                         BotMessageType.ANIMATION -> {
-                            message.fileId?.let { fileHashIds ->
+                            message.fileIds?.let { fileHashIds ->
                                 for (fileHashId in fileHashIds) {
                                     val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
                                     val send = SendAnimation()
@@ -210,7 +210,10 @@ class MessageToOperatorServiceImpl(
                                         InputFile(File(Paths.get(fileInfo.path).toAbsolutePath().toString()))
                                     send.caption = message.caption
                                     send.replyToMessageId = message.replyMessageId
-                                    absSender.execute(send)
+                                    val ex = absSender.execute(send)
+                                    newSessionMsg(
+                                        message, session, operatorId, ex.messageId, fileInfos = listOf(fileInfo)
+                                    )
                                 }
                             }
                         }
@@ -219,7 +222,8 @@ class MessageToOperatorServiceImpl(
                             message.location?.let {
                                 val send = SendLocation(userId, it.latitude, it.longitude)
                                 send.replyToMessageId = message.replyMessageId
-                                absSender.execute(send)
+                                val ex = absSender.execute(send)
+                                newSessionMsg(message, session, operatorId, ex.messageId, location = send)
                             } ?: throw BadCredentialsException()
                         }
 
@@ -227,7 +231,8 @@ class MessageToOperatorServiceImpl(
                             message.contact?.let {
                                 val send = SendContact(userId, it.phoneNumber, it.name)
                                 send.replyToMessageId = message.replyMessageId
-                                absSender.execute(send)
+                                val ex = absSender.execute(send)
+                                newSessionMsg(message, session, operatorId, ex.messageId, contact = send)
                             } ?: throw BadCredentialsException()
                         }
 
@@ -241,22 +246,48 @@ class MessageToOperatorServiceImpl(
         } ?: throw SessionNotFoundException()
     }
 
+    private fun newSessionMsg(
+        message: OperatorSentMsgRequest,
+        session: Session,
+        operatorId: Long,
+        messageId: Int,
+        fileInfos: List<FileInfo>? = null,
+        location: SendLocation? = null,
+        contact: SendContact? = null,
+    ): BotMessage {
+        return botMessageRepository.save(
+            BotMessage(
+                fromOperatorId = operatorId,
+                session = session,
+                messageId = messageId,
+                replyMessageId = message.replyMessageId,
+                botMessageType = message.type!!,
+                text = message.text,
+                caption = message.caption,
+                files = fileInfos,
+                location = location?.let { locationRepository.save(Location(it.latitude, it.longitude)) },
+                contact = contact?.let { contactRepository.save(Contact(it.firstName, it.phoneNumber)) },
+                dice = null
+            )
+        )
+    }
+
     private fun sendMediaGroup(
         userId: String,
         inputMediaList: MutableList<InputMedia>,
         absSender: SupportTelegramBot,
-        caption: String?,
-        replyMessageId: Int?
+        message: OperatorSentMsgRequest,
+        session: Session,
+        operatorId: Long
     ) {
         var isDocument = false
+        val caption = message.caption
+        val replyMessageId = message.replyMessageId
         for (inputMedia in inputMediaList) if (inputMedia is InputMediaDocument) isDocument = true
         var inputMediaListTemp: MutableList<InputMedia> = mutableListOf()
         if (isDocument) {
             for ((index, inputMedia) in inputMediaList.withIndex()) {
                 val send = InputMediaDocument()
-                println(inputMedia.media)
-                println(inputMedia.mediaName)
-                println(inputMedia.newMediaFile)
                 send.setMedia(inputMedia.newMediaFile, inputMedia.mediaName)
                 if (inputMediaList.size - 1 == index) send.caption = caption
                 inputMediaListTemp.add(send)
@@ -267,7 +298,7 @@ class MessageToOperatorServiceImpl(
             val media = inputMediaListTemp[0]
             val inputFile = InputFile().apply { setMedia(media.newMediaFile, media.mediaName) }
 
-            when (media) {
+            val ex = when (media) {
                 is InputMediaAnimation -> {
                     val send = SendAnimation()
                     send.chatId = userId
@@ -314,14 +345,29 @@ class MessageToOperatorServiceImpl(
                     absSender.execute(send)
                 }
             }
+            newSessionMsg(
+                message,
+                session,
+                operatorId,
+                ex.messageId,
+                fileInfos = message.fileIds?.let { fileInfoRepository.findAllByHashIdIn(it) })
         } else if (inputMediaListTemp.size > 10) {
             inputMediaListTemp.chunked(10).map { inputMedia ->
-                sendMediaGroup(userId, inputMedia.toMutableList(), absSender, caption, replyMessageId)
+                sendMediaGroup(userId, inputMedia.toMutableList(), absSender, message, session, operatorId)
             }
         } else {
             val send = SendMediaGroup(userId, inputMediaListTemp)
             send.replyToMessageId = replyMessageId
-            absSender.execute(send)
+            val exs = absSender.execute(send)
+            for (ex in exs) {
+                newSessionMsg(
+                    message,
+                    session,
+                    operatorId,
+                    ex.messageId,
+                    fileInfos = message.fileIds?.let { fileInfoRepository.findAllByHashIdIn(it) }
+                )
+            }
         }
     }
 
@@ -352,31 +398,42 @@ class MessageToOperatorServiceImpl(
 
     override fun editMessage(message: OperatorEditMsgRequest) {
         val msg = botMessageRepository.findByIdAndDeletedFalse(message.messageId!!) ?: throw MessageNotFoundException()
-        editMessage(message.text,message.caption,msg)
+        editMessage(message.text, message.caption, msg)
     }
 
 
-    fun editMessage(text: String?, caption: String?, msg: BotMessage){
-            text?.let {
-                if (msg.botMessageType == BotMessageType.TEXT) {
-                    if (msg.originalText == null)
-                        msg.originalText = msg.text
-                    msg.text = it
-                }
+    override fun takeSession(id: String) {
+        sessionRepository.findByHashId(id)?.let { session ->
+            if (session.operatorId == null) {
+                session.operatorId = getUserId()
+                session.status = SessionStatusEnum.BUSY
+                sessionRepository.save(session)
+            } else if (session.operatorId != getUserId()) throw BusySessionException()
+            else {
             }
+        } ?: throw SessionNotFoundException()
+    }
 
-            caption?.let {
-                if (msg.botMessageType in listOf(
-                        BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
-                    )
-                ) {
-                    if (msg.originalCaption == null)
-                        msg.originalCaption = msg.caption
-                    msg.caption = it
-                }
+
+    fun editMessage(text: String?, caption: String?, msg: BotMessage) {
+        text?.let {
+            if (msg.botMessageType == BotMessageType.TEXT) {
+                if (msg.originalText == null) msg.originalText = msg.text
+                msg.text = it
             }
-            msg.hasRead = false
-            botMessageRepository.save(msg)
+        }
+
+        caption?.let {
+            if (msg.botMessageType in listOf(
+                    BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
+                )
+            ) {
+                if (msg.originalCaption == null) msg.originalCaption = msg.caption
+                msg.caption = it
+            }
+        }
+        msg.hasRead = false
+        botMessageRepository.save(msg)
     }
 }
 
@@ -498,25 +555,21 @@ class StandardAnswerServiceImpl(
     }
 
     private fun existsByText(text: String) {
-        repository.existsByText(text).takeIf { it }
-            ?.let { throw StandardAnswerAlreadyExistsException() }
+        repository.existsByText(text).takeIf { it }?.let { throw StandardAnswerAlreadyExistsException() }
     }
 
     private fun existsByText(id: Long, text: String) {
-        repository.existsByText(id, text).takeIf { it }
-            ?.let { throw StandardAnswerAlreadyExistsException() }
+        repository.existsByText(id, text).takeIf { it }?.let { throw StandardAnswerAlreadyExistsException() }
     }
 }
 
 @Service
-class StatisticServiceImpl(private val sessionRepository: SessionRepository) :StatisticService {
+class StatisticServiceImpl(private val sessionRepository: SessionRepository) : StatisticService {
 
     override fun getSessionByOperator(
-        operatorId: Long,
-        startDate: Date,
-        endDate: Date
+        operatorId: Long, startDate: Date, endDate: Date
     ): SessionInfoByOperator {
-        return sessionRepository.findBetweenDates(startDate, endDate, operatorId )
+        return sessionRepository.findBetweenDates(startDate, endDate, operatorId)
     }
 
 }
