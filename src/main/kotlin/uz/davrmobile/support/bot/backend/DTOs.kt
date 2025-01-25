@@ -255,6 +255,34 @@ data class FileInfoResponse(
     }
 }
 
+data class StandardAnswerRequest(
+    val text: String
+){
+    companion object{
+        fun toEntity(request: StandardAnswerRequest): StandardAnswer = StandardAnswer(text = request.text)
+    }
+}
+data class StandardAnswerUpdateRequest(
+    val text: String?
+){
+    companion object{
+        fun toEntity(request: StandardAnswerUpdateRequest, entity: StandardAnswer): StandardAnswer{
+            request.run {
+                text?.let {entity.text = it}
+            }
+            return entity
+        }
+    }
+}
+data class StandardAnswerResponse(
+    val id: Long,
+    val text: String
+){
+    companion object{
+        fun toResponse(answer: StandardAnswer): StandardAnswerResponse = StandardAnswerResponse(answer.id!!, answer.text)
+    }
+}
+
 data class GetSessionRequest(
    @NotNull var languages: MutableList<LanguageEnum>,
 )

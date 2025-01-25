@@ -187,6 +187,11 @@ interface FileInfoRepository : BaseRepository<FileInfo> {
 
 interface OperatorLanguageRepository : BaseRepository<OperatorLanguage>
 
-
-
+interface StandardAnswerRepository : BaseRepository<StandardAnswer> {
+    fun existsByText(text: String): Boolean
+    @Query("""
+        select exists (select a from StandardAnswer a where a.id != :id and a.text = :text)
+    """)
+    fun existsByText(id: Long, text: String): Boolean
+}
 
