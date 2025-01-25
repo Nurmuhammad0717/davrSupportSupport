@@ -244,11 +244,10 @@ data class FileInfoResponse(
     val hashId: String,
     val extension: String,
     val size: Long,
-    val path: String
-) {
+    ) {
     companion object {
         fun toResponse(file: FileInfo): FileInfoResponse = FileInfoResponse(
-            file.id!!, file.uploadName, file.name, file.hashId, file.extension, file.size, file.path
+            file.id!!, file.uploadName, file.name, file.hashId, file.extension, file.size
         )
     }
 }
