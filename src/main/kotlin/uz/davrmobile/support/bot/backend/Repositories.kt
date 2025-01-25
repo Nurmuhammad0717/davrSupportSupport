@@ -3,7 +3,6 @@ package uz.davrmobile.support.bot.backend
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import uz.davrmobile.support.repository.BaseRepository
@@ -174,10 +173,33 @@ interface SessionRepository : BaseRepository<Session> {
         count(m.id),
         avg(s.rate),
           from session s join bot_message m on s.id = m.session_id
-          where s.operator_id = :operatorId and between(s.created_date BETWEEN :fromDate)
+          where s.operator_id = :operatorId and s.created_date BETWEEN :startDate: AND :endDate
     """,
         nativeQuery = true)
-    fun findBetweenDates(startDate: Date, endDate: Date, operatorId: Long): SessionInfoByOperator
+    fun findSessionInfoByOperatorIdDateRange(startDate: Date, endDate: Date, operatorId: Long): SessionInfoByOperatorResponse
+    @Query("""
+        select 
+        s.operator_id,
+        count(s.id),
+        count(m.id),
+        avg(s.rate),
+          from session s join bot_message m on s.id = m.session_id
+          where s.operator_id = :operatorId and s.created_date = :date
+    """,
+        nativeQuery = true)
+    fun findSessionInfoByOperatorIdAndDate(date: Date, operatorId: Long): SessionInfoByOperatorResponse
+
+    @Query("""
+        select 
+        s.operator_id,
+        count(s.id),
+        count(m.id),
+        avg(s.rate),
+          from session s join bot_message m on s.id = m.session_id
+          where s.operator_id = :operatorId
+    """,
+        nativeQuery = true)
+    fun findSessionInfoByOperatorId(operatorId: Long): SessionInfoByOperatorResponse
 
 }
 

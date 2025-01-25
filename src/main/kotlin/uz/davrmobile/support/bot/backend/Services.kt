@@ -52,7 +52,9 @@ interface StandardAnswerService {
     fun delete(id: Long)
 }
 interface StatisticService {
-    fun getSessionByOperator(operatorId: Long, startDate: Date, endDate: Date): SessionInfoByOperator
+    fun getSessionByOperatorDateRange(operatorId: Long?, startDate: Date, endDate: Date): SessionInfoByOperatorResponse
+    fun getSessionByOperatorDateRange(operatorId: Long?, date: Date ): SessionInfoByOperatorResponse
+    fun getSessionByOperatorDateRange(operatorId: Long?): SessionInfoByOperatorResponse
 }
 
 @Service
@@ -98,6 +100,7 @@ interface MessageToOperatorService {
     fun sendMessage(message: OperatorSentMsgRequest)
     fun closeSession(sessionHash: String)
     fun editMessage(message: OperatorEditMsgRequest)
+    fun editMessage(text: String?, caption: String?, msg: BotMessage)
 }
 
 @Service
@@ -355,7 +358,7 @@ class MessageToOperatorServiceImpl(
     }
 
 
-    fun editMessage(text: String?, caption: String?, msg: BotMessage){
+    override fun editMessage(text: String?, caption: String?, msg: BotMessage){
             text?.let {
                 if (msg.botMessageType == BotMessageType.TEXT) {
                     if (msg.originalText == null)
@@ -495,12 +498,20 @@ class StandardAnswerServiceImpl(
 @Service
 class StatisticServiceImpl(private val sessionRepository: SessionRepository) :StatisticService {
 
-    override fun getSessionByOperator(
-        operatorId: Long,
-        startDate: Date,
-        endDate: Date
-    ): SessionInfoByOperator {
-        return sessionRepository.findBetweenDates(startDate, endDate, operatorId )
+    override fun getSessionByOperatorDateRange(operatorId: Long?, startDate: Date, endDate: Date): SessionInfoByOperatorResponse {
+        if (operatorId == null) return sessionRepository.findSessionInfoByOperatorIdDateRange(startDate, endDate, getUserId())
+        return sessionRepository.findSessionInfoByOperatorIdDateRange(startDate, endDate, operatorId)
     }
+
+    override fun getSessionByOperatorDateRange(operatorId: Long?, date: Date): SessionInfoByOperatorResponse {
+        if (operatorId == null) return sessionRepository.findSessionInfoByOperatorIdAndDate(date,getUserId())
+        return sessionRepository.findSessionInfoByOperatorIdAndDate(date,  operatorId)
+    }
+
+    override fun getSessionByOperatorDateRange(operatorId: Long?): SessionInfoByOperatorResponse {
+        if (operatorId == null) return sessionRepository.findSessionInfoByOperatorId(getUserId())
+        return sessionRepository.findSessionInfoByOperatorId(operatorId)
+    }
+
 
 }

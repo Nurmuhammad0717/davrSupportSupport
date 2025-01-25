@@ -20,6 +20,7 @@ class DataLoader(
     private val sessionRepository: SessionRepository,
     private val messageSource: MessageSource,
     private val botService: BotService,
+    private val messageToOperatorServiceImpl: MessageToOperatorServiceImpl,
     private val fileInfoRepository: FileInfoRepository,
 ) : CommandLineRunner {
     override fun run(vararg args: String?) {
@@ -43,7 +44,8 @@ class DataLoader(
                 sessionRepository,
                 messageSource,
                 fileInfoRepository,
-                botRepository
+                botRepository,
+                messageToOperatorServiceImpl
             )
             val me = supportTelegramBot.meAsync.get()
             supportTelegramBot.botId = bot.id!!

@@ -287,8 +287,8 @@ data class GetSessionRequest(
    @NotNull var languages: MutableList<LanguageEnum>,
 )
 
-interface SessionInfoByOperator {
-    val operatorId: Long
+interface SessionInfoByOperatorResponse {
+    var operatorId: Long
     val sessionCount: Int
     val messageCount: Int
     val avgRate: Double
@@ -300,4 +300,11 @@ data class OperatorEditMsgRequest(
     val messageId: Long?,
     @Nullable val text: String?,
     @Nullable val caption: String?,
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class OperatorStatisticRequest(
+   @Nullable val operatorId: Long?,
+   @Nullable val startDate: Date?,
+   @Nullable val endDate: Date?
 )

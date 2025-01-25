@@ -124,9 +124,17 @@ class StandardAnswerController(
 class StatisticController(
     private val statisticService: StatisticService
 ){
-    @GetMapping
-    fun getSessionInfoByOperator(
-        @RequestParam("startDate") startDate: Date,
-        @RequestParam("endDate") endDate: Date,
-        @RequestParam("operatorId") operatorId: Long): SessionInfoByOperator = statisticService.getSessionByOperator(operatorId, startDate, endDate)
+    @GetMapping("date-range")
+    fun getSessionInfoByOperatorDateRange( @RequestBody request: OperatorStatisticRequest ) =
+        statisticService.getSessionByOperatorDateRange(request.operatorId,request.startDate!!,request.endDate!!)
+
+    @GetMapping("date")
+    fun getSessionInfoByOperatorByDate(@RequestBody r: OperatorStatisticRequest) =
+        statisticService.getSessionByOperatorDateRange(r.operatorId,r.startDate!!)
+
+    @GetMapping()
+    fun getSessionInfoByOperator(@RequestBody r: OperatorStatisticRequest) =
+        statisticService.getSessionByOperatorDateRange(r.operatorId)
+
+
 }
