@@ -158,3 +158,8 @@ class OperatorLanguage(
     val operatorId: Long,
     @Enumerated(EnumType.STRING) val language: LanguageEnum
 ): BaseEntity()
+
+@Entity
+class StandardAnswer(
+    @Column(nullable = false, unique = true) var text: String,
+): BaseEntity()
