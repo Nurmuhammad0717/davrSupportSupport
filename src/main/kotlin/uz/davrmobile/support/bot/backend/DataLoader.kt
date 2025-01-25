@@ -18,6 +18,7 @@ class DataLoader(
     private val sessionRepository: SessionRepository,
     private val messageSource: MessageSource,
     private val botService: BotService,
+    private val messageToOperatorServiceImpl: MessageToOperatorServiceImpl,
     private val fileInfoRepository: FileInfoRepository,
     private val messageToOperatorServiceImpl: MessageToOperatorServiceImpl,
 ) : CommandLineRunner {

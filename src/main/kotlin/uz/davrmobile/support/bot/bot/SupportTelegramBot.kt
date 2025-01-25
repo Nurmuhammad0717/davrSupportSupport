@@ -44,7 +44,7 @@ open class SupportTelegramBot(
     private val messageSource: MessageSource,
     private val fileInfoRepository: FileInfoRepository,
     private val botRepository: BotRepository,
-    private val messageToOperatorServiceImpl: MessageToOperatorServiceImpl,
+    private val messageToOperatorService: MessageToOperatorService,
     private val executorService: Executor = Executors.newFixedThreadPool(20),
 ) : TelegramLongPollingBot(token) {
     companion object {
@@ -388,7 +388,7 @@ open class SupportTelegramBot(
     @Transactional
     open fun editMessage(chatId: Long, messageId: Int, editedText: String?, editedCaption: String?) {
         botMessageRepository.findByUserIdAndMessageId(chatId, messageId)?.let { message ->
-            messageToOperatorServiceImpl.editMessage(editedText, editedCaption, message)
+            messageToOperatorService.editMessage(editedText, editedCaption, message)
         }
     }
 
