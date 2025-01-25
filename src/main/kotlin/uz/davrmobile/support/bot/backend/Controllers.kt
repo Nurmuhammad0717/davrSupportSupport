@@ -63,6 +63,10 @@ class OperatorController(
         messageToOperatorService.getSessions(request, pageable)
 
     @IsModerator
+    @PostMapping("take-session/{id}")
+    fun takeSession(@PathVariable id: String) = messageToOperatorService.takeSession(id)
+
+    @IsModerator
     @GetMapping("get-session-messages/{id}")
     fun getSessionMessages(@PathVariable id: String) = messageToOperatorService.getSessionMessages(id)
 
@@ -73,6 +77,10 @@ class OperatorController(
     @IsModerator
     @PostMapping("/send-msg")
     fun sendMessage(@RequestBody message: OperatorSentMsgRequest) = messageToOperatorService.sendMessage(message)
+
+    @IsModerator
+    @PostMapping("/edit-msg")
+    fun editMessage(@RequestBody message: OperatorEditMsgRequest) = messageToOperatorService.editMessage(message)
 
     @IsModerator
     @PostMapping("/end-session/{sessionId}")
@@ -94,6 +102,11 @@ class FileInfoController(
         fileInfoService.download(hashId, response)
 
     @IsModerator
+    @GetMapping("show/{hash-id}")
+    fun show(@PathVariable("hash-id") hashId: String, response: HttpServletResponse) =
+        fileInfoService.show(hashId, response)
+
+    @IsModerator
     @GetMapping("{hash-id}")
     fun find(@PathVariable("hash-id") hashId: String) = fileInfoService.find(hashId)
 
@@ -107,7 +120,7 @@ class FileInfoController(
 @RequestMapping("standard-answers")
 class StandardAnswerController(
     private val service: StandardAnswerService
-){
+) {
 
     @PostMapping
     fun create(@RequestBody request: StandardAnswerRequest) = service.create(request)
@@ -129,14 +142,14 @@ class StandardAnswerController(
 @RequestMapping("statistics")
 class StatisticController(
     private val statisticService: StatisticService
-){
+) {
     @GetMapping("date-range")
-    fun getSessionInfoByOperatorDateRange( @RequestBody request: OperatorStatisticRequest ) =
-        statisticService.getSessionByOperatorDateRange(request.operatorId,request.startDate!!,request.endDate!!)
+    fun getSessionInfoByOperatorDateRange(@RequestBody request: OperatorStatisticRequest) =
+        statisticService.getSessionByOperatorDateRange(request.operatorId, request.startDate!!, request.endDate!!)
 
     @GetMapping("date")
     fun getSessionInfoByOperatorByDate(@RequestBody r: OperatorStatisticRequest) =
-        statisticService.getSessionByOperatorDateRange(r.operatorId,r.startDate!!)
+        statisticService.getSessionByOperatorDateRange(r.operatorId, r.startDate!!)
 
     @GetMapping()
     fun getSessionInfoByOperator(@RequestBody r: OperatorStatisticRequest) =

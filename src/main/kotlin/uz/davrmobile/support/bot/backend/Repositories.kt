@@ -242,10 +242,13 @@ interface BotRepository : BaseRepository<Bot> {
     fun findByHashIdAndDeletedFalse(id: String): Bot?
     fun findByIdAndStatusAndDeletedFalse(id: Long, status: BotStatusEnum): Bot?
     fun findAllByDeletedFalse(): List<Bot>
+    fun existsByToken(token: String): Boolean
 }
 
 interface FileInfoRepository : BaseRepository<FileInfo> {
     fun findByHashId(hashId: String): FileInfo?
+    fun findAllByHashId(hashId: String): MutableList<FileInfo>
+    fun findAllByHashIdIn(hashIds: List<String>): MutableList<FileInfo>
 }
 
 interface OperatorLanguageRepository : BaseRepository<OperatorLanguage>

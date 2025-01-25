@@ -10,9 +10,7 @@ import java.util.*
 data class BaseMessage(val code: Int, val message: String?)
 
 data class AddOperatorRequest(
-    val userId: Long,
-    val userRole: UserRole,
-    val languages: MutableSet<LanguageEnum>
+    val userId: Long, val userRole: UserRole, val languages: MutableSet<LanguageEnum>
 )
 
 data class UserResponse(
@@ -33,10 +31,7 @@ data class UserResponse(
 }
 
 data class SessionInfo(
-    val user: UserResponse,
-    val status: SessionStatusEnum,
-    val operatorId: Long?,
-    val rate: Short?
+    val user: UserResponse, val status: SessionStatusEnum, val operatorId: Long?, val rate: Short?
 )
 
 data class RateInfo(
@@ -45,10 +40,8 @@ data class RateInfo(
 )
 
 data class DateRangeRequest(
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
-    val fromDate: Date,
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
-    val toDate: Date
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd") val fromDate: Date,
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd") val toDate: Date
 )
 
 data class TokenRequest(
@@ -57,11 +50,7 @@ data class TokenRequest(
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class BotResponse(
-    val id: String,
-    var token: String?,
-    val username: String,
-    val name: String,
-    val status: BotStatusEnum
+    val id: String, var token: String?, val username: String, val name: String, val status: BotStatusEnum
 ) {
     companion object {
         fun torResponse(bot: Bot): BotResponse {
@@ -73,8 +62,7 @@ data class BotResponse(
 }
 
 data class GetSessionsResponse(
-    val myConnectedSessions: List<SessionResponse>,
-    val waitingSessions: Page<SessionResponse>
+    val myConnectedSessions: List<SessionResponse>, val waitingSessions: Page<SessionResponse>
 )
 
 
@@ -116,18 +104,13 @@ data class SessionResponse(
 }
 
 data class SessionMessagesResponse(
-    val sessionId: String,
-    val from: UserResponse,
-    val messages: List<BotMessageResponse>
+    val sessionId: String, val from: UserResponse, val messages: List<BotMessageResponse>
 ) {
     companion object {
         fun toResponse(session: Session, unreadMessages: List<BotMessage>): SessionMessagesResponse {
             return session.run {
                 SessionMessagesResponse(
-                    hashId,
-                    UserResponse.toResponse(user),
-                    unreadMessages.map { BotMessageResponse.toResponse(it) }
-                )
+                    hashId, UserResponse.toResponse(user), unreadMessages.map { BotMessageResponse.toResponse(it) })
             }
         }
     }
@@ -156,7 +139,7 @@ data class BotMessageResponse(
                     messageId, botMessageType,
                     replyMessageId, text, caption,
                     createdDate!!.toInstant().epochSecond,
-                    file?.hashId,
+                    files?.let { it[0].hashId },
                     location?.let { LocationResponse.toResponse(it) },
                     contact?.let { ContactResponse.toResponse(it) },
                     dice?.let { DiceResponse.toResponse(it) },
@@ -173,10 +156,9 @@ data class OperatorSentMsgRequest(
     @Nullable val replyMessageId: Int?,
     @Nullable val text: String?,
     @Nullable val caption: String?,
-    @Nullable val fileId: List<String>?,
+    @Nullable val fileIds: List<String>?,
     @Nullable val location: LocationRequest?,
     @Nullable val contact: ContactRequest?,
-    @Nullable val dice: DiceRequest?
 )
 
 data class LocationRequest(
@@ -187,11 +169,6 @@ data class LocationRequest(
 data class ContactRequest(
     val name: String,
     val phoneNumber: String,
-)
-
-data class DiceRequest(
-    val value: Int,
-    val emoji: String
 )
 
 data class LocationResponse(
@@ -221,8 +198,7 @@ data class ContactResponse(
 }
 
 data class DiceResponse(
-    val value: Int,
-    val emoji: String
+    val value: Int, val emoji: String
 ) {
     companion object {
         fun toResponse(dice: Dice): DiceResponse {
@@ -270,8 +246,7 @@ data class StandardAnswerUpdateRequest(
 }
 
 data class StandardAnswerResponse(
-    val id: Long,
-    val text: String
+    val id: Long, val text: String
 ) {
     companion object {
         fun toResponse(answer: StandardAnswer): StandardAnswerResponse =
