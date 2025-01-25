@@ -51,6 +51,9 @@ interface StandardAnswerService {
     fun findAll(pageable: Pageable): Page<StandardAnswerResponse>
     fun delete(id: Long)
 }
+interface StatisticService {
+    fun getSessionByOperator(operatorId: Long, startDate: Date, endDate: Date): SessionInfoByOperator
+}
 
 @Service
 class UserServiceImpl(
@@ -487,4 +490,17 @@ class StandardAnswerServiceImpl(
         repository.existsByText(id, text).takeIf { it }
             ?.let { throw StandardAnswerAlreadyExistsException() }
     }
+}
+
+@Service
+class StatisticServiceImpl(private val sessionRepository: SessionRepository) :StatisticService {
+
+    override fun getSessionByOperator(
+        operatorId: Long,
+        startDate: Date,
+        endDate: Date
+    ): SessionInfoByOperator {
+        return sessionRepository.findBetweenDates(startDate, endDate, operatorId )
+    }
+
 }

@@ -287,6 +287,13 @@ data class GetSessionRequest(
    @NotNull var languages: MutableList<LanguageEnum>,
 )
 
+interface SessionInfoByOperator {
+    val operatorId: Long
+    val sessionCount: Int
+    val messageCount: Int
+    val avgRate: Double
+}
+
 data class OperatorEditMsgRequest(
     val sessionId: String?,
     val type: BotMessageType?,
