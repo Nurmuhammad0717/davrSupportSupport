@@ -1,6 +1,5 @@
 package uz.davrmobile.support.bot.backend
 
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.Pageable
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
@@ -14,7 +13,7 @@ import javax.validation.Valid
 @RestController
 @RequestMapping("/bot")
 class BotController(private val botService: BotService) {
-//    @IsAdmin
+    //    @IsAdmin
     @IsModerator
     @PostMapping
     fun create(@RequestBody req: TokenRequest) = botService.createBot(req)
@@ -23,17 +22,17 @@ class BotController(private val botService: BotService) {
     @GetMapping
     fun getAll() = botService.getAllBots()
 
-//    @IsAdmin
+    //    @IsAdmin
     @IsModerator
     @GetMapping("{id}")
     fun getOneBot(@PathVariable id: String) = botService.getOneBot(id)
 
-//    @IsAdmin
+    //    @IsAdmin
     @IsModerator
     @DeleteMapping("{id}")
     fun deleteBot(@PathVariable id: String) = botService.deleteBot(id)
 
-//    @IsAdmin
+    //    @IsAdmin
     @IsModerator
     @PostMapping("stop/{id}")
     fun stopBot(@PathVariable id: String) = botService.stopBot(id)
@@ -43,7 +42,7 @@ class BotController(private val botService: BotService) {
     fun getAllActiveBots() = botService.getAllActiveBots()
 
     @IsModerator
-        @PostMapping("add-bot/{id}")
+    @PostMapping("add-bot/{id}")
     fun addBot(@PathVariable id: String) = botService.addBotToOperator(id)
 
     @IsModerator
@@ -58,7 +57,8 @@ class OperatorController(
 ) {
     @IsModerator
     @GetMapping("get-sessions")
-    fun getSessions(@RequestBody @Valid request:GetSessionRequest, pageable: Pageable) = messageToOperatorService.getSessions(request,pageable)
+    fun getSessions(@RequestBody @Valid request: GetSessionRequest, pageable: Pageable) =
+        messageToOperatorService.getSessions(request, pageable)
 
     @IsModerator
     @GetMapping("get-session-messages/{id}")
@@ -86,11 +86,34 @@ class FileInfoController(
     fun upload(@RequestParam("file") multipartFile: MutableList<MultipartFile>) = fileInfoService.upload(multipartFile)
 
     @GetMapping("download/{hash-id}")
-    fun download(@PathVariable("hash-id") hashId: String, response: HttpServletResponse) = fileInfoService.download(hashId, response)
+    fun download(@PathVariable("hash-id") hashId: String, response: HttpServletResponse) =
+        fileInfoService.download(hashId, response)
 
     @GetMapping("{hash-id}")
     fun find(@PathVariable("hash-id") hashId: String) = fileInfoService.find(hashId)
 
     @GetMapping
     fun findAll(pageable: Pageable) = fileInfoService.findAll(pageable)
+}
+
+@RestController
+@RequestMapping("standard-answers")
+class StandardAnswerController(
+    private val service: StandardAnswerService
+){
+
+    @PostMapping
+    fun create(@RequestBody request: StandardAnswerRequest) = service.create(request)
+
+    @PutMapping("{id}")
+    fun update(@RequestBody request: StandardAnswerUpdateRequest, @PathVariable id: Long) = service.update(request, id)
+
+    @GetMapping("{id}")
+    fun find(@PathVariable id: Long) = service.find(id)
+
+    @GetMapping
+    fun findAll(pageable: Pageable) = service.findAll(pageable)
+
+    @DeleteMapping("{id}")
+    fun delete(@PathVariable id: Long) = service.delete(id)
 }
