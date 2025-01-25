@@ -64,7 +64,8 @@ class Session(
     @Enumerated(EnumType.STRING) var status: SessionStatusEnum? = SessionStatusEnum.WAITING,
     @Column(name = "operator_id") var operatorId: Long? = null,
     var rate: Short? = null,
-    val hashId: String = randomHashId()
+    val hashId: String = randomHashId(),
+    val language: LanguageEnum
 ) : BaseEntity() {
     fun hasOperator(): Boolean {
         return operatorId != null
