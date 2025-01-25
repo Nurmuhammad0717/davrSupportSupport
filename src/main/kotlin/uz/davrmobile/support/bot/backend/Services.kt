@@ -44,12 +44,12 @@ interface FileInfoService {
     fun upload(multipartFileList: MutableList<MultipartFile>): List<FileInfoResponse>
 }
 
-interface StandardAnswerService{
-    fun create(request: StandardAnswerRequest):StandardAnswerResponse
-    fun update(request: StandardAnswerUpdateRequest, id: Long):StandardAnswerResponse
-    fun find(id:Long): StandardAnswerResponse
+interface StandardAnswerService {
+    fun create(request: StandardAnswerRequest): StandardAnswerResponse
+    fun update(request: StandardAnswerUpdateRequest, id: Long): StandardAnswerResponse
+    fun find(id: Long): StandardAnswerResponse
     fun findAll(pageable: Pageable): Page<StandardAnswerResponse>
-    fun delete(id:Long)
+    fun delete(id: Long)
 }
 interface StatisticService {
     fun getSessionByOperator(operatorId: Long, startDate: Date, endDate: Date): SessionInfoByOperator
@@ -97,6 +97,7 @@ interface MessageToOperatorService {
     fun getUnreadMessages(id: String): SessionMessagesResponse
     fun sendMessage(message: OperatorSentMsgRequest)
     fun closeSession(sessionHash: String)
+    fun editMessage(message: OperatorEditMsgRequest)
 }
 
 @Service
@@ -112,14 +113,19 @@ class MessageToOperatorServiceImpl(
         val userId = getUserId()
         val botIds: MutableList<Long> = mutableListOf()
 
-        if(request.languages.isEmpty())
-            request.languages.addAll(mutableListOf(LanguageEnum.EN,LanguageEnum.RU,LanguageEnum.UZ))
+        if (request.languages.isEmpty())
+            request.languages.addAll(mutableListOf(LanguageEnum.EN, LanguageEnum.RU, LanguageEnum.UZ))
 
         botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE).map {
             if (it.operatorIds.contains(userId)) botIds.add(it.id!!)
         }
 
-        val waitingSessions = sessionRepository.findAllByBotIdInAndDeletedFalseAndStatusAndLanguageIn(botIds, SessionStatusEnum.WAITING,request.languages,pageable)
+        val waitingSessions = sessionRepository.findAllByBotIdInAndDeletedFalseAndStatusAndLanguageIn(
+            botIds,
+            SessionStatusEnum.WAITING,
+            request.languages,
+            pageable
+        )
         val thisUsersBusySessions = sessionRepository.findAllByOperatorIdAndStatus(userId, SessionStatusEnum.BUSY)
 
         val busySessionResponse = thisUsersBusySessions.map {
@@ -342,6 +348,35 @@ class MessageToOperatorServiceImpl(
             SupportTelegramBot.findBotById(it.botId)?.sendRateMsg(it.user, it)
         }
     }
+
+    override fun editMessage(message: OperatorEditMsgRequest) {
+        val msg = botMessageRepository.findByIdAndDeletedFalse(message.messageId!!) ?: throw MessageNotFoundException()
+        editMessage(message.text,message.caption,msg)
+    }
+
+
+    fun editMessage(text: String?, caption: String?, msg: BotMessage){
+            text?.let {
+                if (msg.botMessageType == BotMessageType.TEXT) {
+                    if (msg.originalText == null)
+                        msg.originalText = msg.text
+                    msg.text = it
+                }
+            }
+
+            caption?.let {
+                if (msg.botMessageType in listOf(
+                        BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
+                    )
+                ) {
+                    if (msg.originalCaption == null)
+                        msg.originalCaption = msg.caption
+                    msg.caption = it
+                }
+            }
+            msg.hasRead = false
+            botMessageRepository.save(msg)
+    }
 }
 
 @Service
@@ -422,17 +457,18 @@ class StandardAnswerServiceImpl(
     override fun create(request: StandardAnswerRequest): StandardAnswerResponse {
         existsByText(request.text)
         return StandardAnswerResponse.toResponse(
-            repository.save(StandardAnswerRequest.toEntity(request)))
+            repository.save(StandardAnswerRequest.toEntity(request))
+        )
     }
 
     override fun update(request: StandardAnswerUpdateRequest, id: Long): StandardAnswerResponse {
-        request.text?.let { existsByText(id, it)}
+        request.text?.let { existsByText(id, it) }
         val answer = repository.findByIdAndDeletedFalse(id) ?: throw StandardAnswerNotFoundException()
         return StandardAnswerResponse.toResponse(StandardAnswerUpdateRequest.toEntity(request, answer))
     }
 
     override fun find(id: Long): StandardAnswerResponse {
-        val answer = repository.findByIdAndDeletedFalse(id)?: throw StandardAnswerNotFoundException()
+        val answer = repository.findByIdAndDeletedFalse(id) ?: throw StandardAnswerNotFoundException()
         return StandardAnswerResponse.toResponse(answer)
     }
 
@@ -441,17 +477,18 @@ class StandardAnswerServiceImpl(
     }
 
     override fun delete(id: Long) {
-        val answer = repository.findByIdAndDeletedFalse(id)?: throw StandardAnswerNotFoundException()
+        val answer = repository.findByIdAndDeletedFalse(id) ?: throw StandardAnswerNotFoundException()
         repository.delete(answer)
     }
 
-    private fun existsByText(text: String)  {
+    private fun existsByText(text: String) {
         repository.existsByText(text).takeIf { it }
-            ?.let {throw StandardAnswerAlreadyExistsException()}
+            ?.let { throw StandardAnswerAlreadyExistsException() }
     }
-    private fun existsByText(id:Long, text: String) {
+
+    private fun existsByText(id: Long, text: String) {
         repository.existsByText(id, text).takeIf { it }
-             ?.let {throw StandardAnswerAlreadyExistsException()}
+            ?.let { throw StandardAnswerAlreadyExistsException() }
     }
 }
 

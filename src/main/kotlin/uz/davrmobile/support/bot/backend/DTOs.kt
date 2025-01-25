@@ -293,3 +293,11 @@ interface SessionInfoByOperator {
     val messageCount: Int
     val avgRate: Double
 }
+
+data class OperatorEditMsgRequest(
+    val sessionId: String?,
+    val type: BotMessageType?,
+    val messageId: Long?,
+    @Nullable val text: String?,
+    @Nullable val caption: String?,
+)
