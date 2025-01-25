@@ -4,6 +4,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import uz.davrmobile.support.bot.bot.BotService
+import uz.davrmobile.support.util.IsAdmin
 import uz.davrmobile.support.util.IsModerator
 import uz.davrmobile.support.util.IsUser
 import javax.servlet.http.HttpServletResponse
@@ -64,7 +65,7 @@ class OperatorController(
     @GetMapping("get-session-messages/{id}")
     fun getSessionMessages(@PathVariable id: String) = messageToOperatorService.getSessionMessages(id)
 
-    @IsUser
+    @IsModerator
     @GetMapping("get-unread-messages/{id}")
     fun getUnreadMessages(@PathVariable id: String) = messageToOperatorService.getUnreadMessages(id)
 
@@ -82,16 +83,21 @@ class OperatorController(
 class FileInfoController(
     private val fileInfoService: FileInfoService
 ) {
+    @IsModerator
     @PostMapping("upload")
     fun upload(@RequestParam("file") multipartFile: MutableList<MultipartFile>) = fileInfoService.upload(multipartFile)
 
+    @IsModerator
     @GetMapping("download/{hash-id}")
     fun download(@PathVariable("hash-id") hashId: String, response: HttpServletResponse) =
         fileInfoService.download(hashId, response)
 
+    @IsModerator
     @GetMapping("{hash-id}")
     fun find(@PathVariable("hash-id") hashId: String) = fileInfoService.find(hashId)
 
+    //    @IsAdmin
+    @IsModerator
     @GetMapping
     fun findAll(pageable: Pageable) = fileInfoService.findAll(pageable)
 }
