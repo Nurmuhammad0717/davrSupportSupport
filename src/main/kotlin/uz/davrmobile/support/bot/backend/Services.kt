@@ -46,8 +46,7 @@ interface FileInfoService {
 
 @Service
 class UserServiceImpl(
-    private val userRepository: UserRepository,
-    private val operatorLanguageRepository: OperatorLanguageRepository
+    private val userRepository: UserRepository, private val operatorLanguageRepository: OperatorLanguageRepository
 ) : UserService {
     override fun getAllUsers(): List<UserResponse> {
         return userRepository.findAllByDeletedFalse().map {
@@ -139,8 +138,7 @@ class MessageToOperatorServiceImpl(
     override fun getUnreadMessages(id: String): SessionMessagesResponse {
         sessionRepository.findByHashId(id)?.let { session ->
             val unreadMessages = botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(session.id!!)
-            for (unreadMessage in unreadMessages)
-                unreadMessage.hasRead = true
+            for (unreadMessage in unreadMessages) unreadMessage.hasRead = true
             botMessageRepository.saveAll(unreadMessages)
             return SessionMessagesResponse.toResponse(session, unreadMessages)
         }
@@ -177,11 +175,7 @@ class MessageToOperatorServiceImpl(
                                     inputMediaList.add(getInputMediaByFileInfo(fileInfo, message.caption))
                                 }
                                 sendMediaGroup(
-                                    userId,
-                                    inputMediaList,
-                                    absSender,
-                                    message.caption,
-                                    message.replyMessageId
+                                    userId, inputMediaList, absSender, message.caption, message.replyMessageId
                                 )
                             } ?: throw BadCredentialsException()
                         }
@@ -235,9 +229,7 @@ class MessageToOperatorServiceImpl(
         replyMessageId: Int?
     ) {
         var isDocument = false
-        for (inputMedia in inputMediaList)
-            if (inputMedia is InputMediaDocument)
-                isDocument = true
+        for (inputMedia in inputMediaList) if (inputMedia is InputMediaDocument) isDocument = true
         var inputMediaListTemp: MutableList<InputMedia> = mutableListOf()
         if (isDocument) {
             for ((index, inputMedia) in inputMediaList.withIndex()) {
@@ -246,8 +238,7 @@ class MessageToOperatorServiceImpl(
                 println(inputMedia.mediaName)
                 println(inputMedia.newMediaFile)
                 send.setMedia(inputMedia.newMediaFile, inputMedia.mediaName)
-                if (inputMediaList.size - 1 == index)
-                    send.caption = caption
+                if (inputMediaList.size - 1 == index) send.caption = caption
                 inputMediaListTemp.add(send)
             }
         } else inputMediaListTemp = inputMediaList

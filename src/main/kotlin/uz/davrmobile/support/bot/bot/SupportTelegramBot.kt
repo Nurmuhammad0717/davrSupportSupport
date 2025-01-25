@@ -476,10 +476,10 @@ open class SupportTelegramBot(
                 Pair(BotMessageType.PHOTO, message.photo.maxByOrNull { it.fileSize ?: 0 }?.fileId)
             }
 
-            message.hasVideoNote() -> Pair(BotMessageType.VIDEO, message.videoNote.fileId)
+            message.hasVideoNote() -> Pair(BotMessageType.VIDEO_NOTE, message.videoNote.fileId)
             message.hasPoll() -> Pair(BotMessageType.POLL, null)
             message.hasVoice() -> Pair(BotMessageType.VOICE, message.voice.fileId)
-            message.hasVideo() -> Pair(BotMessageType.VIDEO_NOTE, message.video.fileId)
+            message.hasVideo() -> Pair(BotMessageType.VIDEO, message.video.fileId)
             message.hasAudio() -> Pair(BotMessageType.AUDIO, message.audio.fileId)
             message.hasContact() -> Pair(BotMessageType.CONTACT, null)
             message.hasLocation() -> Pair(BotMessageType.LOCATION, null)
