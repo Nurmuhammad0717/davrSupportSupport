@@ -21,7 +21,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageMedia
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText
 import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.meta.api.objects.media.*
@@ -102,7 +101,7 @@ interface MessageToOperatorService {
     fun getSessions(request: GetSessionRequest, pageable: Pageable): GetSessionsResponse
     fun getSessionMessages(id: String): SessionMessagesResponse
     fun getUnreadMessages(id: String): SessionMessagesResponse
-    fun sendMessage(message: OperatorSentMsgRequest)
+    fun sendMessage(message: OperatorSentMsgRequest): BotMessageResponse
     fun closeSession(sessionHash: String)
     fun editMessage(message: OperatorEditMsgRequest)
     fun editMessage(text: String?, caption: String?, msg: BotMessage)
@@ -176,7 +175,7 @@ class MessageToOperatorServiceImpl(
     }
 
     @Transactional
-    override fun sendMessage(message: OperatorSentMsgRequest) {
+    override fun sendMessage(message: OperatorSentMsgRequest): BotMessageResponse {
         val operatorId = getUserId()
         val sessionHashId = message.sessionId!!
         sessionRepository.findByHashId(sessionHashId)?.let { session ->
@@ -184,14 +183,21 @@ class MessageToOperatorServiceImpl(
             val user = session.user
             val userId = user.id.toString()
             botRepository.findByIdAndDeletedFalse(session.botId)?.let { bot ->
-                SupportTelegramBot.findBotById(bot.id!!)?.let { absSender ->
+                SupportTelegramBot.findBotById(bot.id)?.let { absSender ->
                     when (message.type!!) {
                         BotMessageType.TEXT -> {
                             message.text?.let { text ->
                                 val send = SendMessage(userId, text)
                                 send.replyToMessageId = message.replyMessageId
                                 val ex = absSender.execute(send)
-                                newSessionMsg(message, session, operatorId, ex.messageId)
+                                return BotMessageResponse.toResponse(
+                                    newSessionMsg(
+                                        message,
+                                        session,
+                                        operatorId,
+                                        ex.messageId
+                                    )
+                                )
                             } ?: throw BadCredentialsException()
                         }
 
@@ -202,12 +208,13 @@ class MessageToOperatorServiceImpl(
                                     val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
                                     inputMediaList.add(getInputMediaByFileInfo(fileInfo, message.caption))
                                 }
-                                sendMediaGroup(userId, inputMediaList, absSender, message, session, operatorId)
+                                return sendMediaGroup(userId, inputMediaList, absSender, message, session, operatorId)
                             } ?: throw BadCredentialsException()
                         }
 
                         BotMessageType.ANIMATION -> {
                             message.fileIds?.let { fileHashIds ->
+                                var lastMsg: BotMessageResponse? = null
                                 for (fileHashId in fileHashIds) {
                                     val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
                                     val send = SendAnimation()
@@ -217,10 +224,17 @@ class MessageToOperatorServiceImpl(
                                     send.caption = message.caption
                                     send.replyToMessageId = message.replyMessageId
                                     val ex = absSender.execute(send)
-                                    newSessionMsg(
-                                        message, session, operatorId, ex.messageId, fileInfos = listOf(fileInfo)
+                                    lastMsg = BotMessageResponse.toResponse(
+                                        newSessionMsg(
+                                            message,
+                                            session,
+                                            operatorId,
+                                            ex.messageId,
+                                            fileInfos = listOf(fileInfo)
+                                        )
                                     )
                                 }
+                                return lastMsg!!
                             }
                         }
 
@@ -229,7 +243,15 @@ class MessageToOperatorServiceImpl(
                                 val send = SendLocation(userId, it.latitude, it.longitude)
                                 send.replyToMessageId = message.replyMessageId
                                 val ex = absSender.execute(send)
-                                newSessionMsg(message, session, operatorId, ex.messageId, location = send)
+                                return BotMessageResponse.toResponse(
+                                    newSessionMsg(
+                                        message,
+                                        session,
+                                        operatorId,
+                                        ex.messageId,
+                                        location = send
+                                    )
+                                )
                             } ?: throw BadCredentialsException()
                         }
 
@@ -238,14 +260,19 @@ class MessageToOperatorServiceImpl(
                                 val send = SendContact(userId, it.phoneNumber, it.name)
                                 send.replyToMessageId = message.replyMessageId
                                 val ex = absSender.execute(send)
-                                newSessionMsg(message, session, operatorId, ex.messageId, contact = send)
+                                return BotMessageResponse.toResponse(
+                                    newSessionMsg(
+                                        message,
+                                        session,
+                                        operatorId,
+                                        ex.messageId,
+                                        contact = send
+                                    )
+                                )
                             } ?: throw BadCredentialsException()
                         }
 
-                        BotMessageType.POLL -> {}
-                        BotMessageType.DICE -> {}
-                        BotMessageType.STICKER -> {}
-                        BotMessageType.VIDEO_NOTE -> {}
+                        else -> throw UnSupportedMessageTypeException()
                     }
                 } ?: throw BotNotFoundException()
             } ?: throw BotNotFoundException()
@@ -285,7 +312,7 @@ class MessageToOperatorServiceImpl(
         message: OperatorSentMsgRequest,
         session: Session,
         operatorId: Long
-    ) {
+    ): BotMessageResponse {
         var isDocument = false
         val caption = message.caption
         val replyMessageId = message.replyMessageId
@@ -351,28 +378,34 @@ class MessageToOperatorServiceImpl(
                     absSender.execute(send)
                 }
             }
-            newSessionMsg(
-                message,
-                session,
-                operatorId,
-                ex.messageId,
-                fileInfos = message.fileIds?.let { fileInfoRepository.findAllByHashIdIn(it) })
-        } else if (inputMediaListTemp.size > 10) {
-            inputMediaListTemp.chunked(10).map { inputMedia ->
-                sendMediaGroup(userId, inputMedia.toMutableList(), absSender, message, session, operatorId)
-            }
-        } else {
-            val send = SendMediaGroup(userId, inputMediaListTemp)
-            send.replyToMessageId = replyMessageId
-            val exs = absSender.execute(send)
-            for (ex in exs) {
+            return BotMessageResponse.toResponse(
                 newSessionMsg(
                     message,
                     session,
                     operatorId,
                     ex.messageId,
                     fileInfos = message.fileIds?.let { fileInfoRepository.findAllByHashIdIn(it) })
+            )
+        } else if (inputMediaListTemp.size > 10) {
+            var lastMsg: BotMessageResponse? = null
+            inputMediaListTemp.chunked(10).map { inputMedia ->
+                lastMsg = sendMediaGroup(userId, inputMedia.toMutableList(), absSender, message, session, operatorId)
             }
+            return lastMsg!!
+        } else {
+            val send = SendMediaGroup(userId, inputMediaListTemp)
+            send.replyToMessageId = replyMessageId
+            val exs = absSender.execute(send)
+            var lastMsg: BotMessage? = null
+            for (ex in exs) {
+                lastMsg = newSessionMsg(
+                    message,
+                    session,
+                    operatorId,
+                    ex.messageId,
+                    fileInfos = message.fileIds?.let { fileInfoRepository.findAllByHashIdIn(it) })
+            }
+            return BotMessageResponse.toResponse(lastMsg!!)
         }
     }
 
@@ -403,56 +436,56 @@ class MessageToOperatorServiceImpl(
 
     override fun editMessage(message: OperatorEditMsgRequest) {
         val msg = botMessageRepository.findByIdAndDeletedFalse(message.messageId!!) ?: throw MessageNotFoundException()
-        editMessage(message.text,message.caption,msg)
+        editMessage(message.text, message.caption, msg)
 
     }
 
 
-    override fun editMessage(text: String?, caption: String?, msg: BotMessage){
-            text?.let {
-                if (msg.botMessageType == BotMessageType.TEXT) {
-                    if (msg.originalText == null)
-                        msg.originalText = msg.text
-                    msg.text = it
+    override fun editMessage(text: String?, caption: String?, msg: BotMessage) {
+        text?.let {
+            if (msg.botMessageType == BotMessageType.TEXT) {
+                if (msg.originalText == null)
+                    msg.originalText = msg.text
+                msg.text = it
 
-                    if(msg.user==null) {
-                        val session = msg.session
-                        val userId = session.user.id.toString()
-                        SupportTelegramBot.findBotById(session.botId)?.let { bot ->
-                            val send = EditMessageText()
-                            send.chatId = userId
-                            send.messageId = msg.messageId
-                            send.text = it
-                            bot.execute(send)
-                        }
+                if (msg.user == null) {
+                    val session = msg.session
+                    val userId = session.user.id.toString()
+                    SupportTelegramBot.findBotById(session.botId)?.let { bot ->
+                        val send = EditMessageText()
+                        send.chatId = userId
+                        send.messageId = msg.messageId
+                        send.text = it
+                        bot.execute(send)
                     }
                 }
             }
+        }
 
-            caption?.let {
-                if (msg.botMessageType in listOf(
-                        BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
-                    )
-                ) {
-                    if (msg.originalCaption == null)
-                        msg.originalCaption = msg.caption
-                    msg.caption = it
+        caption?.let {
+            if (msg.botMessageType in listOf(
+                    BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
+                )
+            ) {
+                if (msg.originalCaption == null)
+                    msg.originalCaption = msg.caption
+                msg.caption = it
 
-                    if(msg.user==null) {
-                        val session = msg.session
-                        val userId = session.user.id.toString()
-                        SupportTelegramBot.findBotById(session.botId)?.let { bot ->
-                            val send = EditMessageCaption()
-                            send.chatId = userId
-                            send.messageId = msg.messageId
-                            send.caption = it
-                            bot.execute(send)
-                        }
+                if (msg.user == null) {
+                    val session = msg.session
+                    val userId = session.user.id.toString()
+                    SupportTelegramBot.findBotById(session.botId)?.let { bot ->
+                        val send = EditMessageCaption()
+                        send.chatId = userId
+                        send.messageId = msg.messageId
+                        send.caption = it
+                        bot.execute(send)
                     }
                 }
             }
-            msg.hasRead = false
-            botMessageRepository.save(msg)
+        }
+        msg.hasRead = false
+        botMessageRepository.save(msg)
     }
 
     override fun takeSession(id: String) {
@@ -568,7 +601,7 @@ class StandardAnswerServiceImpl(
     override fun update(request: StandardAnswerUpdateRequest, id: Long): StandardAnswerResponse {
         request.text?.let { existsByText(id, it) }
         val answer = repository.findByIdAndDeletedFalse(id) ?: throw StandardAnswerNotFoundException()
-        return StandardAnswerResponse.toResponse(repository.save(StandardAnswerUpdateRequest.toEntity(request,answer)))
+        return StandardAnswerResponse.toResponse(repository.save(StandardAnswerUpdateRequest.toEntity(request, answer)))
     }
 
     override fun find(id: Long): StandardAnswerResponse {
@@ -590,7 +623,7 @@ class StandardAnswerServiceImpl(
     }
 
     private fun existsByText(id: Long, text: String) {
-        repository.existsByTextAndIdNot(text,id).takeIf { it }
+        repository.existsByTextAndIdNot(text, id).takeIf { it }
             ?.let { throw StandardAnswerAlreadyExistsException() }
     }
 }

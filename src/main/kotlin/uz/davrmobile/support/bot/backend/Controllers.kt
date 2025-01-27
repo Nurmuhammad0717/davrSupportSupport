@@ -4,10 +4,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import uz.davrmobile.support.bot.bot.BotService
-import uz.davrmobile.support.util.IsAdmin
 import uz.davrmobile.support.util.IsModerator
-import uz.davrmobile.support.util.IsUser
-import java.util.*
 import javax.servlet.http.HttpServletResponse
 import javax.validation.Valid
 
@@ -38,6 +35,10 @@ class BotController(private val botService: BotService) {
     @IsModerator
     @PostMapping("stop/{id}")
     fun stopBot(@PathVariable id: String) = botService.stopBot(id)
+
+    @IsModerator
+    @PostMapping("active/{id}")
+    fun activeBot(@PathVariable id: String) = botService.activeBot(id)
 
     @IsModerator
     @GetMapping("/active-bots")

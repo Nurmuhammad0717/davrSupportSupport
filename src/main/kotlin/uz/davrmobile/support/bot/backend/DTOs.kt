@@ -50,12 +50,18 @@ data class TokenRequest(
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class BotResponse(
-    val id: String, var token: String?, val username: String, val name: String, val status: BotStatusEnum
+    val id: String,
+    var token: String?,
+    val username: String,
+    val name: String,
+    val status: BotStatusEnum,
+    val miniPhotoId: String?,
+    val bigPhotoId: String?,
 ) {
     companion object {
         fun torResponse(bot: Bot): BotResponse {
             return bot.run {
-                BotResponse(hashId, token, username, name, status)
+                BotResponse(hashId, token, username, name, status, miniPhotoId, bigPhotoId)
             }
         }
     }
@@ -275,7 +281,18 @@ data class OperatorEditMsgRequest(
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class OperatorStatisticRequest(
-   @Nullable val operatorId: Long?,
-   @Nullable val startDate: Date?,
-   @Nullable val endDate: Date?
+    @Nullable val operatorId: Long?,
+    @Nullable val startDate: Date?,
+    @Nullable val endDate: Date?
 )
+
+data class SavedTgFileResponse(
+    val name: String,
+    val extension: String,
+    val path: String,
+    val size: Long,
+) {
+    fun toEntity(): FileInfo {
+        return FileInfo(name, name, extension, path, size)
+    }
+}

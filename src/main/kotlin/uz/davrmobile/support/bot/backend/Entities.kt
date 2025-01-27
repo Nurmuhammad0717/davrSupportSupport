@@ -43,6 +43,19 @@ class BotUser(
     }
 }
 
+@Entity
+class Bot(
+    @Id val id: Long,
+    @Column(nullable = false) val token: String,
+    @Column(nullable = false) var username: String,
+    var name: String,
+    @Enumerated(value = EnumType.STRING) var status: BotStatusEnum = BotStatusEnum.ACTIVE,
+    @ElementCollection var operatorIds: MutableSet<Long> = mutableSetOf(),
+    var miniPhotoId: String? = null,
+    var bigPhotoId: String? = null,
+    val hashId: String = randomHashId()
+) : BaseUserEntity()
+
 @Table(
     indexes = [
         Index(columnList = "user_id, operator_id")
@@ -75,32 +88,23 @@ class Session(
     }
 }
 
+@Table(
+    indexes = [
+        Index(columnList = "id")
+    ]
+)
+
 @Entity(name = "location")
 class Location(
     @Column(nullable = false) val latitude: Double,
     @Column(nullable = false) val longitude: Double,
 ) : BaseEntity()
 
+
 @Entity(name = "dice")
 class Dice(
     @Column(nullable = false) val value: Int,
     @Column(nullable = false) val emoji: String,
-) : BaseEntity()
-
-
-@Table(
-    indexes = [
-        Index(columnList = "id")
-    ]
-)
-@Entity
-class Bot(
-    @Column(nullable = false) val token: String,
-    @Column(nullable = false) var username: String,
-    var name: String,
-    @Enumerated(value = EnumType.STRING) var status: BotStatusEnum = BotStatusEnum.ACTIVE,
-    @ElementCollection var operatorIds: MutableSet<Long> = mutableSetOf(),
-    val hashId: String = randomHashId()
 ) : BaseEntity()
 
 @Table(

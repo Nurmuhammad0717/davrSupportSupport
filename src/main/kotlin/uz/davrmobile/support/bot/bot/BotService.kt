@@ -4,7 +4,9 @@ import org.springframework.context.MessageSource
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.meta.api.methods.GetMe
+import org.telegram.telegrambots.meta.api.methods.GetUserProfilePhotos
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands
+import org.telegram.telegrambots.meta.api.objects.UserProfilePhotos
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
@@ -29,30 +31,38 @@ class BotService(
 ) {
 
     fun createBot(req: TokenRequest) {
-        if (botRepository.existsByToken((req.token))) {
-            val supportTelegramBot = SupportTelegramBot(
-                "",
-                req.token,
-                -1L,
-                userRepository,
-                botMessageRepository,
-                locationRepository,
-                contactRepository,
-                diceRepository,
-                sessionRepository,
-                messageSource,
-                fileInfoRepository,
-                botRepository,
-                messageToOperatorServiceImpl
-            )
+        if (!botRepository.existsByToken((req.token))) {
+            val supportTelegramBot = createSupportTelegramBot(req.token)
             val me = supportTelegramBot.meAsync.get()
-            val savedBot = botRepository.save(Bot(req.token, me.userName, me.firstName))
-            supportTelegramBot.botId = savedBot.id!!
+            val savedBot = botRepository.save(Bot(me.id, req.token, me.userName, me.firstName))
+            supportTelegramBot.botId = savedBot.id
             supportTelegramBot.username = me.userName
-            registerBot(supportTelegramBot)
-            activeBots[req.token] = supportTelegramBot
+            startBot(supportTelegramBot)
             setDefaultBotCommands(supportTelegramBot)
         }
+    }
+
+    private fun createSupportTelegramBot(token: String): SupportTelegramBot {
+        return SupportTelegramBot(
+            "",
+            token,
+            -1L,
+            userRepository,
+            botMessageRepository,
+            locationRepository,
+            contactRepository,
+            diceRepository,
+            sessionRepository,
+            messageSource,
+            fileInfoRepository,
+            botRepository,
+            messageToOperatorServiceImpl
+        )
+    }
+
+    private fun startBot(bot: SupportTelegramBot) {
+        registerBot(bot)
+        activeBots[bot.token] = bot
     }
 
     fun registerBot(bot: SupportTelegramBot) {
@@ -62,15 +72,45 @@ class BotService(
 
     fun stopBot(id: String) {
         botRepository.findByHashId(id)?.let { bot ->
-            findBotById(bot.id!!)?.let { tgBot ->
+            findBotById(bot.id)?.let { tgBot ->
                 bot.status = BotStatusEnum.STOPPED
                 botRepository.save(bot)
                 activeBots.remove(tgBot.token)
+            } ?: throw BotAlreadyStoppedException()
+        } ?: throw BotNotFoundException()
+    }
 
-                return
+    fun activeBot(id: String) {
+        botRepository.findByHashId(id)?.let { bot ->
+            findBotById(bot.id)?.let {
+                throw BotAlreadyActiveException()
+            } ?: run {
+                val tgBot = createSupportTelegramBot(bot.token)
+                val me = tgBot.meAsync.get()
+                updateBotPhoto(tgBot, bot)
+                tgBot.botId = bot.id
+                tgBot.username = me.userName
+                startBot(tgBot)
             }
+        } ?: throw BotNotFoundException()
+    }
+
+    private fun updateBotPhoto(tgBot: SupportTelegramBot, bot: Bot) {
+        val photos = getBotPhotos(tgBot).photos
+        if (photos.size > 0) {
+            val photo = photos[0]
+            val miniPhotoSize = photo[0]
+            val bigPhotoSize = photo[photo.lastIndex]
+            bot.miniPhotoId = fileInfoRepository.save(tgBot.saveFile(miniPhotoSize.fileId).toEntity()).hashId
+            bot.bigPhotoId = if (miniPhotoSize.fileId == bigPhotoSize.fileId) {
+                fileInfoRepository.save(tgBot.saveFile(bigPhotoSize.fileId).toEntity()).hashId
+            } else bot.miniPhotoId
+            botRepository.save(bot)
         }
-        throw BotNotFoundException()
+    }
+
+    private fun getBotPhotos(tgBot: SupportTelegramBot): UserProfilePhotos {
+        return tgBot.execute(GetUserProfilePhotos(tgBot.botId))
     }
 
     fun setDefaultBotCommands(bot: SupportTelegramBot) {
@@ -108,8 +148,9 @@ class BotService(
     }
 
     private fun updateBotInfo(bot: Bot): Bot {
-        findBotById(bot.id!!)?.let {
+        findBotById(bot.id)?.let {
             val user = it.execute(GetMe())
+            updateBotPhoto(it, bot)
             bot.username = user.userName
             bot.name = user.firstName
         }

@@ -40,7 +40,7 @@ class UserAlreadyExistException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.USER_ALREADY_EXISTS
 }
 
-class UnSupportedMessageType : DBusinessException() {
+class UnSupportedMessageTypeException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.UN_SUPPORTED_MESSAGE_TYPE
 }
 
@@ -92,5 +92,10 @@ class StandardAnswerAlreadyExistsException : DBusinessException() {
     override fun errorCode(): ErrorCode = ErrorCode.STANDARD_ANSWER_ALREADY_EXISTS
 }
 
+class BotAlreadyStoppedException : DBusinessException() {
+    override fun errorCode(): ErrorCode = ErrorCode.BOT_ALREADY_STOPPED
+}
 
-
+class BotAlreadyActiveException : DBusinessException() {
+    override fun errorCode(): ErrorCode = ErrorCode.BOT_ALREADY_ACTIVE
+}

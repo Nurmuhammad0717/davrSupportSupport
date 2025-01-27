@@ -10,7 +10,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendChatAction
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.Message
-import org.telegram.telegrambots.meta.api.objects.MessageEntity
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup
@@ -284,22 +283,29 @@ open class SupportTelegramBot(
         }
     }
 
-    private fun downloadAndSaveFile(fileIdAndFileName: String): FileInfo {
-        val uploadFileName = fileIdAndFileName.substringAfter("$%%%$")
-        val fileId = fileIdAndFileName.substringBefore("$%%%$")
-
+    fun saveFile(fileId: String): SavedTgFileResponse {
         val fileFromTelegram = this.execute(GetFile(fileId))
         val inputStream = this.downloadFileAsStream(fileFromTelegram)
-        val fileSize = fileFromTelegram.fileSize
         var fileName = fileFromTelegram.filePath.substringAfterLast("/")
+        val fileSize = fileFromTelegram.fileSize
         val fileExtension = fileName.substringAfterLast(".")
         fileName = fileName.substringBeforeLast(".") + randomHashId() + "." + fileExtension
         val filePath = "./files/${LocalDate.now()}/$fileName"
         Paths.get(filePath).parent?.let { directoryPath ->
             if (!Files.exists(directoryPath)) Files.createDirectories(directoryPath)
         }
-        FileOutputStream(filePath).use { outputStream -> inputStream.copyTo(outputStream, bufferSize = 64 * 1024) }
-        return fileInfoRepository.save(FileInfo(fileName, uploadFileName, fileExtension, filePath, fileSize))
+        FileOutputStream(filePath).use { outputStream ->
+            inputStream.copyTo(outputStream, bufferSize = 64 * 1024)
+        }
+        return SavedTgFileResponse(fileName, fileExtension, filePath, fileSize)
+    }
+
+    private fun downloadAndSaveFile(fileIdAndFileName: String): FileInfo {
+        val uploadFileName = fileIdAndFileName.substringAfter("$%%%$")
+        val fileId = fileIdAndFileName.substringBefore("$%%%$")
+
+        val file = saveFile(fileId)
+        return fileInfoRepository.save(FileInfo(file.name, uploadFileName, file.extension, file.path, file.size))
     }
 
     private fun saveUserPhoneNumber(user: BotUser, phoneNumber: String) {
