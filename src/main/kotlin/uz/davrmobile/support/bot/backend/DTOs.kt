@@ -59,7 +59,7 @@ data class BotResponse(
     val bigPhotoId: String?,
 ) {
     companion object {
-        fun torResponse(bot: Bot): BotResponse {
+        fun toResponse(bot: Bot): BotResponse {
             return bot.run {
                 BotResponse(hashId, token, username, name, status, miniPhotoId, bigPhotoId)
             }
@@ -86,7 +86,7 @@ data class UserSessionResponse(
 data class SessionResponse(
     val id: String,
     val user: UserSessionResponse,
-    val botId: String,
+    val bot: BotResponse,
     val status: SessionStatusEnum,
     val newMessagesCount: Int,
     val language: LanguageEnum,
@@ -98,7 +98,7 @@ data class SessionResponse(
                 return SessionResponse(
                     hashId,
                     UserSessionResponse.toResponse(user),
-                    bot.hashId,
+                    BotResponse.toResponse(bot),
                     status!!,
                     messageCount,
                     language,
@@ -145,7 +145,7 @@ data class BotMessageResponse(
                     messageId, botMessageType,
                     replyMessageId, text, caption,
                     createdDate!!.toInstant().epochSecond,
-                    files?.let { it.map { u->u.hashId } },
+                    files?.let { it.map { u -> u.hashId } },
                     location?.let { LocationResponse.toResponse(it) },
                     contact?.let { ContactResponse.toResponse(it) },
                     dice?.let { DiceResponse.toResponse(it) },

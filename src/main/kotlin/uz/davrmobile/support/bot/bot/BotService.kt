@@ -133,7 +133,7 @@ class BotService(
 
     fun getAllBots(): List<BotResponse> {
         return updateAllBotsAndGet(botRepository.findAllByDeletedFalse()).map {
-            val res = BotResponse.torResponse(it)
+            val res = BotResponse.toResponse(it)
             res.token = null
             res
         }
@@ -141,7 +141,7 @@ class BotService(
 
     fun getAllActiveBots(): List<BotResponse> {
         return updateAllBotsAndGet(botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE)).map {
-            val res = BotResponse.torResponse(it)
+            val res = BotResponse.toResponse(it)
             res.token = null
             res
         }
@@ -165,7 +165,7 @@ class BotService(
 
     fun getOneBot(id: String): BotResponse? {
         return botRepository.findByHashIdAndDeletedFalse(id)?.let {
-            BotResponse.torResponse(it)
+            BotResponse.toResponse(it)
         } ?: throw BotNotFoundException()
     }
 

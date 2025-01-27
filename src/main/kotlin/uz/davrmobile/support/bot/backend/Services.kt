@@ -5,21 +5,7 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
-import org.telegram.telegrambots.meta.api.methods.send.SendAnimation
-import org.telegram.telegrambots.meta.api.methods.send.SendAudio
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
-import java.time.LocalDate
-import java.util.*
-import org.telegram.telegrambots.meta.api.methods.send.SendContact
-import org.telegram.telegrambots.meta.api.methods.send.SendDocument
-import org.telegram.telegrambots.meta.api.methods.send.SendLocation
-import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage
-import org.telegram.telegrambots.meta.api.methods.send.SendPhoto
-import org.telegram.telegrambots.meta.api.methods.send.SendVideo
+import org.telegram.telegrambots.meta.api.methods.send.*
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText
 import org.telegram.telegrambots.meta.api.objects.InputFile
@@ -28,6 +14,12 @@ import uz.davrmobile.support.bot.bot.SupportTelegramBot
 import uz.davrmobile.support.util.getUserId
 import java.io.File
 import java.io.FileInputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+import java.time.LocalDate
+import java.util.*
 import javax.servlet.http.HttpServletResponse
 import javax.transaction.Transactional
 
@@ -123,14 +115,11 @@ class MessageToOperatorServiceImpl(
         val userId = getUserId()
         val botIds: MutableList<Long> = mutableListOf()
 
-        if (request.languages.isEmpty()) request.languages.addAll(
-            mutableListOf(
-                LanguageEnum.EN, LanguageEnum.RU, LanguageEnum.UZ
-            )
-        )
+        if (request.languages.isEmpty())
+            request.languages.addAll(mutableListOf(LanguageEnum.EN, LanguageEnum.RU, LanguageEnum.UZ))
 
         botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE).map {
-            if (it.operatorIds.contains(userId)) botIds.add(it.id!!)
+            if (it.operatorIds.contains(userId)) botIds.add(it.id)
         }
 
         val waitingSessions = sessionRepository.findAllByBotIdInAndDeletedFalseAndStatusAndLanguageIn(
