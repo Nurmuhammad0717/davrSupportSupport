@@ -12,7 +12,12 @@ import java.util.*
 interface DiceRepository : BaseRepository<Dice>
 
 interface UserRepository : JpaRepository<BotUser, Long> {
-    fun findAllByDeletedFalse(): List<BotUser>
+    fun findAllByDeletedFalseOrderByIdDesc(pageable: Pageable): Page<BotUser>
+    fun findAllByDeletedFalseAndFullNameContainsIgnoreCaseOrderByIdDesc(
+        pageable: Pageable,
+        fullName: String
+    ): Page<BotUser>
+
     fun findByIdAndDeletedFalse(id: Long): BotUser?
 }
 
@@ -33,7 +38,8 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
     """
     )
     fun findMessagesGroupedBySessionId(): List<Map<Any, Any>>
-    abstract fun findAllByHashIdAndHasReadFalseAndDeletedFalse(hashId: String): List<BotMessage>
+    fun findAllByHashIdAndHasReadFalseAndDeletedFalse(hashId: String): List<BotMessage>
+    fun findByMessageIdAndDeletedFalse(messageId: Int): BotMessage?
 }
 
 interface SessionRepository : BaseRepository<Session> {
@@ -173,9 +179,9 @@ interface SessionRepository : BaseRepository<Session> {
     @Query(
         """
     SELECT 
-        s.operator_id AS operatorId,
-        COUNT(DISTINCT s.id) AS sessionCount,
-        COUNT(m.id) AS messageCount,
+        COALESCE(s.operator_id,0) AS operatorId,
+        COALESCE(COUNT(DISTINCT s.id),0) AS sessionCount,
+        COALESCE(COUNT(m.id),0) AS messageCount,
         COALESCE(AVG(s.rate), 0) AS avgRate
     FROM session s
     LEFT JOIN bot_message m ON s.id = m.session_id
@@ -238,11 +244,20 @@ interface BotRepository : BaseRepository<Bot> {
     fun findAllByStatus(status: BotStatusEnum): List<Bot>
     fun findAllBotsByStatusAndDeletedFalse(status: BotStatusEnum): List<Bot>
     fun findByHashId(hashId: String): Bot?
-    fun deleteByHashId(id: String)
-    fun findByHashIdAndDeletedFalse(id: String): Bot?
     fun findByIdAndStatusAndDeletedFalse(id: Long, status: BotStatusEnum): Bot?
     fun findAllByDeletedFalse(): List<Bot>
     fun existsByToken(token: String): Boolean
+    fun findAllBotsByStatusAndDeletedFalseAndOperatorIdsContains(
+        status: BotStatusEnum,
+        operatorIds: Long
+    ): MutableList<Bot>
+    fun findAllBotsByOperatorIdsContains(operatorIds: Long): List<Bot>
+
+    fun findByChatIdAndStatusAndDeletedFalse(chatId: Long, status: BotStatusEnum): Bot?
+
+    fun findByChatIdAndDeletedFalse(chatId: Long): Bot?
+    fun findByHashIdAndDeletedFalse(id: String): Bot?
+    fun deleteByHashId(hashId: String)
 }
 
 interface FileInfoRepository : BaseRepository<FileInfo> {

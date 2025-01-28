@@ -1,6 +1,5 @@
 package uz.davrmobile.support.bot.backend
 
-import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonInclude
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
@@ -8,10 +7,6 @@ import org.springframework.data.domain.Page
 import java.util.*
 
 data class BaseMessage(val code: Int, val message: String?)
-
-data class AddOperatorRequest(
-    val userId: Long, val userRole: UserRole, val languages: MutableSet<LanguageEnum>
-)
 
 data class UserResponse(
     val id: Long,
@@ -30,20 +25,6 @@ data class UserResponse(
     }
 }
 
-data class SessionInfo(
-    val user: UserResponse, val status: SessionStatusEnum, val operatorId: Long?, val rate: Short?
-)
-
-data class RateInfo(
-    val rate: Double,
-    val operator: UserResponse,
-)
-
-data class DateRangeRequest(
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd") val fromDate: Date,
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd") val toDate: Date
-)
-
 data class TokenRequest(
     val token: String,
 )
@@ -51,17 +32,23 @@ data class TokenRequest(
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class BotResponse(
     val id: String,
-    var token: String?,
     val username: String,
     val name: String,
     val status: BotStatusEnum,
+    var token: String?,
     val miniPhotoId: String?,
     val bigPhotoId: String?,
 ) {
     companion object {
         fun toResponse(bot: Bot): BotResponse {
             return bot.run {
-                BotResponse(hashId, token, username, name, status, miniPhotoId, bigPhotoId)
+                BotResponse(hashId, username, name, status, token, miniPhotoId, bigPhotoId)
+            }
+        }
+
+        fun toResponseWithoutToken(bot: Bot): BotResponse {
+            return bot.run {
+                BotResponse(hashId, username, name, status, null, miniPhotoId, bigPhotoId)
             }
         }
     }
@@ -98,7 +85,7 @@ data class SessionResponse(
                 return SessionResponse(
                     hashId,
                     UserSessionResponse.toResponse(user),
-                    BotResponse.toResponse(bot),
+                    BotResponse.toResponseWithoutToken(bot),
                     status!!,
                     messageCount,
                     language,
@@ -110,7 +97,9 @@ data class SessionResponse(
 }
 
 data class SessionMessagesResponse(
-    val sessionId: String, val from: UserResponse, val messages: List<BotMessageResponse>
+    val sessionId: String,
+    val from: UserResponse,
+    val messages: List<BotMessageResponse>
 ) {
     companion object {
         fun toResponse(session: Session, unreadMessages: List<BotMessage>): SessionMessagesResponse {
@@ -131,7 +120,7 @@ data class BotMessageResponse(
     val text: String?,
     val caption: String?,
     val date: Long,
-    val fileHashes: List<String>?,
+    val fileHashIds: List<String>?,
     val location: LocationResponse?,
     val contact: ContactResponse?,
     val dice: DiceResponse?,
@@ -145,12 +134,16 @@ data class BotMessageResponse(
                     messageId, botMessageType,
                     replyMessageId, text, caption,
                     createdDate!!.toInstant().epochSecond,
-                    files?.let { it.map { u -> u.hashId } },
+                    files?.let {
+                        if (it.isNotEmpty()) it.map { u -> u.hashId }
+                        else null
+                    },
                     location?.let { LocationResponse.toResponse(it) },
                     contact?.let { ContactResponse.toResponse(it) },
                     dice?.let { DiceResponse.toResponse(it) },
                     (botMessage.originalText != null || botMessage.originalCaption != null),
                 )
+
             }
         }
     }
@@ -296,3 +289,15 @@ data class SavedTgFileResponse(
         return FileInfo(name, name, extension, path, size)
     }
 }
+
+data class GetOperatorBotsResponse(
+    val bots: List<BotResponse>
+)
+
+data class UploadFileResponse(
+    val files: List<FileInfoResponse>
+)
+
+data class GetAllUsersResponse(
+    val users: Page<UserResponse>
+)

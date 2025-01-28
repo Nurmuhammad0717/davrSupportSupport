@@ -1,9 +1,16 @@
 package uz.davrmobile.support.bot.bot
 
+import uz.davrmobile.support.enm.UserRole
+import uz.davrmobile.support.util.getRoles
 import java.util.*
 
 class Utils {
     companion object {
+        fun isAdmin(): Boolean {
+            val roles = getRoles()
+            return (roles.contains(UserRole.ADMIN) || roles.contains(UserRole.DEV) || roles.contains(UserRole.MODERATOR))
+        }
+
         fun randomHashId(): String {
             return UUID.randomUUID().toString().substringAfterLast("-") +
                     UUID.randomUUID().toString().substringAfterLast("-") +

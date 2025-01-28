@@ -223,7 +223,7 @@ open class SupportTelegramBot(
     @Transactional
     open fun handleSessionMsgForUser(update: Update, user: BotUser) {
         getSession(user).let { session ->
-            val savedMessage = newSessionMsg(update, session, user)
+            newSessionMsg(update, session, user)
 
             if (session.hasOperator()) {
 
@@ -498,22 +498,16 @@ open class SupportTelegramBot(
     }
 
     @Transactional
-    open fun stopChat(operator: BotUser) {
-        val session = sessionRepository.findByOperatorIdAndStatus(operator.id, SessionStatusEnum.BUSY)
-        session?.let {
-            val user = it.user
+    open fun stopChat(session: Session) {
+        val user = session.user
+        user.state = UserStateEnum.ACTIVE_USER
+        userRepository.save(user)
 
-            it.status = SessionStatusEnum.CLOSED
-            it.operatorId = null
-            userRepository.save(operator)
-            user.state = UserStateEnum.ACTIVE_USER
-            sessionRepository.save(it)
-            userRepository.save(user)
+        session.status = SessionStatusEnum.CLOSED
+        sessionRepository.save(session)
 
-            sendChatStoppedMsg(operator)
-            sendRateMsg(user, session)
-            sendMainMenuMsg(user)
-        }
+        sendRateMsg(user, session)
+        sendMainMenuMsg(user)
     }
 
     open fun sendAskYourQuestionMsg(user: BotUser) {

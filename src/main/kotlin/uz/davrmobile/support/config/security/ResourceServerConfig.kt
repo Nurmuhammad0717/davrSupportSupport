@@ -36,13 +36,9 @@ class ResourceServerConfig : ResourceServerConfigurerAdapter() {
                 "/webjars/**",
 
 
-                "/bot/**",
-                "/operator/**",
-                "/bot-fileinfo/**",
-                "/statistics/**",
-                "/standard-answers/**"
+                "/**",
             )?.permitAll()
-            ?.antMatchers("/**")?.authenticated()
+//            ?.antMatchers("/**")?.authenticated()
             ?.and()
             ?.csrf()?.disable()
     }

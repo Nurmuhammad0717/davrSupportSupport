@@ -8,7 +8,6 @@ import uz.davrmobile.support.util.IsModerator
 import javax.servlet.http.HttpServletResponse
 import javax.validation.Valid
 
-
 @RestController
 @RequestMapping("/bot")
 class BotController(private val botService: BotService) {
@@ -33,23 +32,20 @@ class BotController(private val botService: BotService) {
 
     //    @IsAdmin
     @IsModerator
-    @PostMapping("stop/{id}")
-    fun stopBot(@PathVariable id: String) = botService.stopBot(id)
-
-    @IsModerator
-    @PostMapping("active/{id}")
-    fun activeBot(@PathVariable id: String) = botService.activeBot(id)
+    @PostMapping("change-status")
+    fun stopBot(@RequestParam id: String, @RequestParam status: String) =
+        botService.changeStatus(id, status.lowercase())
 
     @IsModerator
     @GetMapping("/active-bots")
     fun getAllActiveBots() = botService.getAllActiveBots()
 
     @IsModerator
-    @PostMapping("add-bot/{id}")
+    @PostMapping("join/{id}")
     fun addBot(@PathVariable id: String) = botService.addBotToOperator(id)
 
     @IsModerator
-    @PostMapping("remove-bot/{id}")
+    @PostMapping("leave/{id}")
     fun removeBot(@PathVariable id: String) = botService.removeBotFromOperator(id)
 }
 
@@ -59,7 +55,7 @@ class OperatorController(
     private val messageToOperatorService: MessageToOperatorService,
 ) {
     @IsModerator
-    @GetMapping("get-sessions")
+    @GetMapping("sessions")
     fun getSessions(@RequestBody @Valid request: GetSessionRequest, pageable: Pageable) =
         messageToOperatorService.getSessions(request, pageable)
 
@@ -68,28 +64,31 @@ class OperatorController(
     fun takeSession(@PathVariable id: String) = messageToOperatorService.takeSession(id)
 
     @IsModerator
-    @GetMapping("get-session-messages/{id}")
+    @GetMapping("session-messages/{id}")
     fun getSessionMessages(@PathVariable id: String) = messageToOperatorService.getSessionMessages(id)
 
     @IsModerator
-    @GetMapping("get-unread-messages/{id}")
+    @GetMapping("unread-messages/{id}")
     fun getUnreadMessages(@PathVariable id: String) = messageToOperatorService.getUnreadMessages(id)
 
     @IsModerator
-    @PostMapping("/send-msg")
+    @PostMapping("send-msg")
     fun sendMessage(@RequestBody message: OperatorSentMsgRequest) = messageToOperatorService.sendMessage(message)
 
     @IsModerator
-    @PostMapping("/edit-msg")
+    @PostMapping("edit-msg")
     fun editMessage(@RequestBody message: OperatorEditMsgRequest) = messageToOperatorService.editMessage(message)
 
     @IsModerator
-    @PostMapping("/end-session/{sessionId}")
+    @PostMapping("end-session/{sessionId}")
     fun closeSession(@PathVariable sessionId: String) = messageToOperatorService.closeSession(sessionId)
+
+    @GetMapping("bots")
+    fun getOperatorBots() = messageToOperatorService.getOperatorBots()
 }
 
 @RestController
-@RequestMapping("bot-fileinfo")
+@RequestMapping("bot-files")
 class FileInfoController(
     private val fileInfoService: FileInfoService
 ) {
@@ -144,17 +143,14 @@ class StandardAnswerController(
 class StatisticController(
     private val statisticService: StatisticService
 ) {
-    @GetMapping("date-range")
+    @PostMapping("sessions")
     fun getSessionInfoByOperatorDateRange(@RequestBody request: OperatorStatisticRequest) =
-        statisticService.getSessionByOperatorDateRange(request.operatorId, request.startDate!!, request.endDate!!)
+        statisticService.getSessionByOperatorDateRange(request)
+}
 
-    @GetMapping("date")
-    fun getSessionInfoByOperatorByDate(@RequestBody r: OperatorStatisticRequest) =
-        statisticService.getSessionByOperatorDateRange(r.operatorId, r.startDate!!)
-
-    @GetMapping()
-    fun getSessionInfoByOperator(@RequestBody r: OperatorStatisticRequest) =
-        statisticService.getSessionByOperatorDateRange(r.operatorId)
-
-
+@RestController
+@RequestMapping("users")
+class BotUserController(private val userService: UserService) {
+    @GetMapping
+    fun getUsers(pageable: Pageable, @RequestParam fullName: String?) = userService.getAllUsers(pageable, fullName)
 }

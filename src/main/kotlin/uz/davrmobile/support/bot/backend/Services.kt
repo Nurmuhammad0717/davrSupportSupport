@@ -11,7 +11,8 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageTe
 import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.meta.api.objects.media.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
-import uz.davrmobile.support.util.getUserId
+import uz.davrmobile.support.bot.bot.Utils.Companion.isAdmin
+import uz.davrmobile.support.util.userId
 import java.io.File
 import java.io.FileInputStream
 import java.nio.file.Files
@@ -24,7 +25,7 @@ import javax.servlet.http.HttpServletResponse
 import javax.transaction.Transactional
 
 interface UserService {
-    fun getAllUsers(): List<UserResponse>
+    fun getAllUsers(pageable: Pageable, fullName: String?): GetAllUsersResponse
     fun deleteUser(userId: Long)
     fun getUserById(id: Long): UserResponse
     fun addOperatorLanguages(languages: List<LanguageEnum>)
@@ -36,7 +37,7 @@ interface FileInfoService {
     fun show(hashId: String, response: HttpServletResponse)
     fun find(hashId: String): FileInfoResponse
     fun findAll(pageable: Pageable): Page<FileInfoResponse>
-    fun upload(multipartFileList: MutableList<MultipartFile>): List<FileInfoResponse>
+    fun upload(multipartFileList: MutableList<MultipartFile>): UploadFileResponse
 }
 
 interface StandardAnswerService {
@@ -51,16 +52,33 @@ interface StatisticService {
     fun getSessionByOperatorDateRange(operatorId: Long?, startDate: Date, endDate: Date): SessionInfoByOperatorResponse
     fun getSessionByOperatorDateRange(operatorId: Long?, date: Date): SessionInfoByOperatorResponse
     fun getSessionByOperatorDateRange(operatorId: Long?): SessionInfoByOperatorResponse
+    fun getSessionByOperatorDateRange(request: OperatorStatisticRequest): SessionInfoByOperatorResponse
+}
+
+interface MessageToOperatorService {
+    fun getSessions(request: GetSessionRequest, pageable: Pageable): GetSessionsResponse
+    fun getSessionMessages(id: String): SessionMessagesResponse
+    fun getUnreadMessages(id: String): SessionMessagesResponse
+    fun sendMessage(message: OperatorSentMsgRequest): BotMessageResponse
+    fun closeSession(sessionHash: String)
+    fun editMessage(message: OperatorEditMsgRequest)
+    fun editMessage(text: String?, caption: String?, msg: BotMessage)
+    fun takeSession(id: String)
+    fun getOperatorBots(): GetOperatorBotsResponse
 }
 
 @Service
 class UserServiceImpl(
     private val userRepository: UserRepository, private val operatorLanguageRepository: OperatorLanguageRepository
 ) : UserService {
-    override fun getAllUsers(): List<UserResponse> {
-        return userRepository.findAllByDeletedFalse().map {
+    override fun getAllUsers(pageable: Pageable, fullName: String?): GetAllUsersResponse {
+        return GetAllUsersResponse(fullName?.let {
+            userRepository.findAllByDeletedFalseAndFullNameContainsIgnoreCaseOrderByIdDesc(pageable, it).map { user ->
+                UserResponse.toResponse(user)
+            }
+        } ?: userRepository.findAllByDeletedFalseOrderByIdDesc(pageable).map {
             UserResponse.toResponse(it)
-        }
+        })
     }
 
     override fun deleteUser(userId: Long) {
@@ -78,7 +96,7 @@ class UserServiceImpl(
     }
 
     override fun addOperatorLanguages(languages: List<LanguageEnum>) {
-        val userId = getUserId()
+        val userId = userId()
         for (it in languages) {
             operatorLanguageRepository.save(OperatorLanguage(userId, it))
         }
@@ -87,17 +105,6 @@ class UserServiceImpl(
     override fun removeOperatorLanguage(id: Long) {
         operatorLanguageRepository.trash(id) ?: throw OperatorLanguageNotFoundException()
     }
-}
-
-interface MessageToOperatorService {
-    fun getSessions(request: GetSessionRequest, pageable: Pageable): GetSessionsResponse
-    fun getSessionMessages(id: String): SessionMessagesResponse
-    fun getUnreadMessages(id: String): SessionMessagesResponse
-    fun sendMessage(message: OperatorSentMsgRequest): BotMessageResponse
-    fun closeSession(sessionHash: String)
-    fun editMessage(message: OperatorEditMsgRequest)
-    fun editMessage(text: String?, caption: String?, msg: BotMessage)
-    fun takeSession(id: String)
 }
 
 @Service
@@ -112,15 +119,19 @@ class MessageToOperatorServiceImpl(
 ) : MessageToOperatorService {
 
     override fun getSessions(request: GetSessionRequest, pageable: Pageable): GetSessionsResponse {
-        val userId = getUserId()
-        val botIds: MutableList<Long> = mutableListOf()
+        val userId = userId()
 
-        if (request.languages.isEmpty())
-            request.languages.addAll(mutableListOf(LanguageEnum.EN, LanguageEnum.RU, LanguageEnum.UZ))
+        if (request.languages.isEmpty()) request.languages.addAll(
+            mutableListOf(
+                LanguageEnum.EN,
+                LanguageEnum.RU,
+                LanguageEnum.UZ
+            )
+        )
 
-        botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE).map {
-            if (it.operatorIds.contains(userId)) botIds.add(it.id)
-        }
+        val botIds =
+            botRepository.findAllBotsByStatusAndDeletedFalseAndOperatorIdsContains(BotStatusEnum.ACTIVE, userId)
+                .map { it.chatId }.toMutableList()
 
         val waitingSessions = sessionRepository.findAllByBotIdInAndDeletedFalseAndStatusAndLanguageIn(
             botIds, SessionStatusEnum.WAITING, request.languages, pageable
@@ -129,14 +140,14 @@ class MessageToOperatorServiceImpl(
 
         val busySessionResponse = thisUsersBusySessions.map {
             val count = botMessageRepository.countAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!)
-            val bot = botRepository.findByIdAndStatusAndDeletedFalse(it.botId, BotStatusEnum.ACTIVE)
+            val bot = botRepository.findByChatIdAndStatusAndDeletedFalse(it.botId, BotStatusEnum.ACTIVE)
                 ?: throw BotNotFoundException()
             SessionResponse.toResponse(it, count, bot)
         }
 
         val waitingSessionResponse = waitingSessions.map {
             val count = botMessageRepository.countAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!)
-            val bot = botRepository.findByIdAndStatusAndDeletedFalse(it.botId, BotStatusEnum.ACTIVE)
+            val bot = botRepository.findByChatIdAndStatusAndDeletedFalse(it.botId, BotStatusEnum.ACTIVE)
                 ?: throw BotNotFoundException()
             SessionResponse.toResponse(it, count, bot)
         }
@@ -165,14 +176,14 @@ class MessageToOperatorServiceImpl(
 
     @Transactional
     override fun sendMessage(message: OperatorSentMsgRequest): BotMessageResponse {
-        val operatorId = getUserId()
+        val operatorId = userId()
         val sessionHashId = message.sessionId!!
         sessionRepository.findByHashId(sessionHashId)?.let { session ->
-            if (session.operatorId != getUserId()) throw BusySessionException()
+            if (session.operatorId != userId()) throw BusySessionException()
             val user = session.user
             val userId = user.id.toString()
-            botRepository.findByIdAndDeletedFalse(session.botId)?.let { bot ->
-                SupportTelegramBot.findBotById(bot.id)?.let { absSender ->
+            botRepository.findByChatIdAndDeletedFalse(session.botId)?.let { bot ->
+                SupportTelegramBot.findBotById(bot.chatId)?.let { absSender ->
                     when (message.type!!) {
                         BotMessageType.TEXT -> {
                             message.text?.let { text ->
@@ -181,10 +192,7 @@ class MessageToOperatorServiceImpl(
                                 val ex = absSender.execute(send)
                                 return BotMessageResponse.toResponse(
                                     newSessionMsg(
-                                        message,
-                                        session,
-                                        operatorId,
-                                        ex.messageId
+                                        message, session, operatorId, ex.messageId
                                     )
                                 )
                             } ?: throw BadCredentialsException()
@@ -215,11 +223,7 @@ class MessageToOperatorServiceImpl(
                                     val ex = absSender.execute(send)
                                     lastMsg = BotMessageResponse.toResponse(
                                         newSessionMsg(
-                                            message,
-                                            session,
-                                            operatorId,
-                                            ex.messageId,
-                                            fileInfos = listOf(fileInfo)
+                                            message, session, operatorId, ex.messageId, fileInfos = listOf(fileInfo)
                                         )
                                     )
                                 }
@@ -234,11 +238,7 @@ class MessageToOperatorServiceImpl(
                                 val ex = absSender.execute(send)
                                 return BotMessageResponse.toResponse(
                                     newSessionMsg(
-                                        message,
-                                        session,
-                                        operatorId,
-                                        ex.messageId,
-                                        location = send
+                                        message, session, operatorId, ex.messageId, location = send
                                     )
                                 )
                             } ?: throw BadCredentialsException()
@@ -251,11 +251,7 @@ class MessageToOperatorServiceImpl(
                                 val ex = absSender.execute(send)
                                 return BotMessageResponse.toResponse(
                                     newSessionMsg(
-                                        message,
-                                        session,
-                                        operatorId,
-                                        ex.messageId,
-                                        contact = send
+                                        message, session, operatorId, ex.messageId, contact = send
                                     )
                                 )
                             } ?: throw BadCredentialsException()
@@ -419,22 +415,21 @@ class MessageToOperatorServiceImpl(
             if (it.isClosed()) return
             it.status = SessionStatusEnum.CLOSED
             sessionRepository.save(it)
-            SupportTelegramBot.findBotById(it.botId)?.sendRateMsg(it.user, it)
+            SupportTelegramBot.findBotById(it.botId)?.stopChat(it)
         }
     }
 
     override fun editMessage(message: OperatorEditMsgRequest) {
-        val msg = botMessageRepository.findByIdAndDeletedFalse(message.messageId!!) ?: throw MessageNotFoundException()
+        val msg = botMessageRepository.findByMessageIdAndDeletedFalse(message.messageId!!.toInt())
+            ?: throw MessageNotFoundException()
         editMessage(message.text, message.caption, msg)
-
     }
 
 
     override fun editMessage(text: String?, caption: String?, msg: BotMessage) {
         text?.let {
             if (msg.botMessageType == BotMessageType.TEXT) {
-                if (msg.originalText == null)
-                    msg.originalText = msg.text
+                if (msg.originalText == null) msg.originalText = msg.text
                 msg.text = it
 
                 if (msg.user == null) {
@@ -456,8 +451,7 @@ class MessageToOperatorServiceImpl(
                     BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
                 )
             ) {
-                if (msg.originalCaption == null)
-                    msg.originalCaption = msg.caption
+                if (msg.originalCaption == null) msg.originalCaption = msg.caption
                 msg.caption = it
 
                 if (msg.user == null) {
@@ -480,13 +474,19 @@ class MessageToOperatorServiceImpl(
     override fun takeSession(id: String) {
         sessionRepository.findByHashId(id)?.let { session ->
             if (session.operatorId == null) {
-                session.operatorId = getUserId()
+                session.operatorId = userId()
                 session.status = SessionStatusEnum.BUSY
                 sessionRepository.save(session)
-            } else if (session.operatorId != getUserId()) throw BusySessionException()
+            } else if (session.operatorId != userId()) throw BusySessionException()
             else {
             }
         } ?: throw SessionNotFoundException()
+    }
+
+    override fun getOperatorBots(): GetOperatorBotsResponse {
+        return GetOperatorBotsResponse(botRepository.findAllBotsByOperatorIdsContains(userId()).map {
+            BotResponse.toResponseWithoutToken(it)
+        })
     }
 }
 
@@ -495,7 +495,7 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
 
     private val path: String = "files/${LocalDate.now()}"
 
-    override fun upload(multipartFileList: MutableList<MultipartFile>): List<FileInfoResponse> {
+    override fun upload(multipartFileList: MutableList<MultipartFile>): UploadFileResponse {
         val responseFiles: MutableList<FileInfoResponse> = mutableListOf()
         multipartFileList.forEach { multipartFile ->
             val name = takeFileName(multipartFile)
@@ -519,7 +519,7 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
             }
             responseFiles.add(FileInfoResponse.toResponse(savedFileInfo))
         }
-        return responseFiles
+        return UploadFileResponse(responseFiles)
     }
 
     override fun download(hashId: String, response: HttpServletResponse) {
@@ -612,32 +612,48 @@ class StandardAnswerServiceImpl(
     }
 
     private fun existsByText(id: Long, text: String) {
-        repository.existsByTextAndIdNot(text, id).takeIf { it }
-            ?.let { throw StandardAnswerAlreadyExistsException() }
+        repository.existsByTextAndIdNot(text, id).takeIf { it }?.let { throw StandardAnswerAlreadyExistsException() }
     }
 }
 
 @Service
 class StatisticServiceImpl(private val sessionRepository: SessionRepository) : StatisticService {
-
     override fun getSessionByOperatorDateRange(
         operatorId: Long?, startDate: Date, endDate: Date
     ): SessionInfoByOperatorResponse {
         if (operatorId == null) return sessionRepository.findSessionInfoByOperatorIdDateRange(
-            startDate, endDate, getUserId()
+            startDate,
+            endDate,
+            userId()
         )
-        return sessionRepository.findSessionInfoByOperatorIdDateRange(startDate, endDate, operatorId)
+        if (isAdmin()) {
+            return sessionRepository.findSessionInfoByOperatorIdDateRange(startDate, endDate, operatorId)
+        } else throw NoAuthorityException()
     }
 
     override fun getSessionByOperatorDateRange(operatorId: Long?, date: Date): SessionInfoByOperatorResponse {
-        if (operatorId == null) return sessionRepository.findSessionInfoByOperatorIdAndDate(date, getUserId())
-        return sessionRepository.findSessionInfoByOperatorIdAndDate(date, operatorId)
+        if (operatorId == null) return sessionRepository.findSessionInfoByOperatorIdAndDate(date, userId())
+        if (isAdmin()) {
+            return sessionRepository.findSessionInfoByOperatorIdAndDate(date, operatorId)
+        } else throw NoAuthorityException()
     }
 
     override fun getSessionByOperatorDateRange(operatorId: Long?): SessionInfoByOperatorResponse {
-        if (operatorId == null) return sessionRepository.findSessionInfoByOperatorId(getUserId())
-        return sessionRepository.findSessionInfoByOperatorId(operatorId)
+        if (operatorId == null) return sessionRepository.findSessionInfoByOperatorId(userId())
+        if (isAdmin()) {
+            return sessionRepository.findSessionInfoByOperatorId(operatorId)
+        } else throw NoAuthorityException()
     }
 
-
+    override fun getSessionByOperatorDateRange(request: OperatorStatisticRequest): SessionInfoByOperatorResponse {
+        request.run {
+            return if (startDate != null && endDate != null) {
+                getSessionByOperatorDateRange(operatorId, startDate, endDate)
+            } else if (startDate != null) {
+                getSessionByOperatorDateRange(operatorId, startDate)
+            } else {
+                getSessionByOperatorDateRange(operatorId)
+            }
+        }
+    }
 }

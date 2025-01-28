@@ -2,6 +2,7 @@ package uz.davrmobile.support.bot.bot
 
 import org.springframework.context.MessageSource
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.meta.api.methods.GetMe
 import org.telegram.telegrambots.meta.api.methods.GetUserProfilePhotos
@@ -13,11 +14,22 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
 import uz.davrmobile.support.bot.backend.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot.Companion.activeBots
 import uz.davrmobile.support.bot.bot.SupportTelegramBot.Companion.findBotById
-import uz.davrmobile.support.util.getUserId
+import uz.davrmobile.support.util.userId
 
+interface BotService {
+    fun createBot(req: TokenRequest)
+    fun registerBot(bot: SupportTelegramBot)
+    fun changeStatus(id: String, status: String)
+    fun getAllBots(): List<BotResponse>
+    fun getAllActiveBots(): List<BotResponse>
+    fun getOneBot(id: String): BotResponse?
+    fun deleteBot(id: String)
+    fun addBotToOperator(id: String)
+    fun removeBotFromOperator(id: String)
+}
 
 @Service
-class BotService(
+class BotServiceImpl(
     private val userRepository: UserRepository,
     private val botMessageRepository: BotMessageRepository,
     private val locationRepository: LocationRepository,
@@ -28,14 +40,14 @@ class BotService(
     private val botRepository: BotRepository,
     private val fileInfoRepository: FileInfoRepository,
     private val messageToOperatorServiceImpl: MessageToOperatorServiceImpl,
-) {
+) : BotService {
 
-    fun createBot(req: TokenRequest) {
+    override fun createBot(req: TokenRequest) {
         if (!botRepository.existsByToken((req.token))) {
             val supportTelegramBot = createSupportTelegramBot(req.token)
             val me = supportTelegramBot.meAsync.get()
             val savedBot = botRepository.save(Bot(me.id, req.token, me.userName, me.firstName))
-            supportTelegramBot.botId = savedBot.id
+            supportTelegramBot.botId = savedBot.chatId
             supportTelegramBot.username = me.userName
             startBot(supportTelegramBot)
             setDefaultBotCommands(supportTelegramBot)
@@ -65,34 +77,36 @@ class BotService(
         activeBots[bot.token] = bot
     }
 
-    fun registerBot(bot: SupportTelegramBot) {
+    override fun registerBot(bot: SupportTelegramBot) {
         val telegramBot = TelegramBotsApi(DefaultBotSession::class.java)
         telegramBot.registerBot(bot)
     }
 
-    fun stopBot(id: String) {
-        botRepository.findByHashId(id)?.let { bot ->
-            findBotById(bot.id)?.let { tgBot ->
-                bot.status = BotStatusEnum.STOPPED
-                botRepository.save(bot)
-                activeBots.remove(tgBot.token)
-            } ?: throw BotAlreadyStoppedException()
-        } ?: throw BotNotFoundException()
-    }
-
-    fun activeBot(id: String) {
-        botRepository.findByHashId(id)?.let { bot ->
-            findBotById(bot.id)?.let {
-                throw BotAlreadyActiveException()
-            } ?: run {
-                val tgBot = createSupportTelegramBot(bot.token)
-                val me = tgBot.meAsync.get()
-                updateBotPhoto(tgBot, bot)
-                tgBot.botId = bot.id
-                tgBot.username = me.userName
-                startBot(tgBot)
-            }
-        } ?: throw BotNotFoundException()
+    override fun changeStatus(id: String, status: String) {
+        if (status == "stop") {
+            botRepository.findByHashId(id)?.let { bot ->
+                findBotById(bot.chatId)?.let { tgBot ->
+                    bot.status = BotStatusEnum.STOPPED
+                    botRepository.save(bot)
+                    activeBots.remove(tgBot.token)
+                } ?: throw BotAlreadyStoppedException()
+            } ?: throw BotNotFoundException()
+        } else if (status == "active") {
+            botRepository.findByHashId(id)?.let { bot ->
+                findBotById(bot.chatId)?.let {
+                    throw BotAlreadyActiveException()
+                } ?: run {
+                    findBotById(bot.chatId) ?: run {
+                        val tgBot = createSupportTelegramBot(bot.token)
+                        val me = tgBot.meAsync.get()
+                        tgBot.botId = bot.chatId
+                        tgBot.username = me.userName
+                        updateBotPhoto(tgBot, bot)
+                        startBot(tgBot)
+                    }
+                }
+            } ?: throw BotNotFoundException()
+        }
     }
 
     private fun updateBotPhoto(tgBot: SupportTelegramBot, bot: Bot) {
@@ -101,10 +115,16 @@ class BotService(
             val photo = photos[0]
             val miniPhotoSize = photo[0]
             val bigPhotoSize = photo[photo.lastIndex]
+            bot.miniPhotoId?.let {
+                fileInfoRepository.findByHashId(it)?.let { fileInfo ->
+                    if (miniPhotoSize.fileSize.toLong() == fileInfo.size) return
+                }
+            }
             bot.miniPhotoId = fileInfoRepository.save(tgBot.saveFile(miniPhotoSize.fileId).toEntity()).hashId
-            bot.bigPhotoId = if (miniPhotoSize.fileId == bigPhotoSize.fileId) {
-                fileInfoRepository.save(tgBot.saveFile(bigPhotoSize.fileId).toEntity()).hashId
-            } else bot.miniPhotoId
+            bot.bigPhotoId =
+                if (miniPhotoSize.fileId == bigPhotoSize.fileId)
+                    fileInfoRepository.save(tgBot.saveFile(bigPhotoSize.fileId).toEntity()).hashId
+                else bot.miniPhotoId
             botRepository.save(bot)
         }
     }
@@ -113,7 +133,7 @@ class BotService(
         return tgBot.execute(GetUserProfilePhotos(tgBot.botId))
     }
 
-    fun setDefaultBotCommands(bot: SupportTelegramBot) {
+    private fun setDefaultBotCommands(bot: SupportTelegramBot) {
         val commandsEN = listOf(
             BotCommand("/start", bot.getMsgByLang("START", LanguageEnum.EN)),
             BotCommand("/setlang", bot.getMsgByLang("SET_LANG", LanguageEnum.EN))
@@ -131,24 +151,18 @@ class BotService(
         bot.execute(SetMyCommands(commandsUZ, BotCommandScopeDefault(), "uz"))
     }
 
-    fun getAllBots(): List<BotResponse> {
-        return updateAllBotsAndGet(botRepository.findAllByDeletedFalse()).map {
-            val res = BotResponse.toResponse(it)
-            res.token = null
-            res
-        }
+    override fun getAllBots(): List<BotResponse> {
+        return updateAllBotsAndGet(botRepository.findAllByDeletedFalse())
+            .map { BotResponse.toResponse(it) }
     }
 
-    fun getAllActiveBots(): List<BotResponse> {
-        return updateAllBotsAndGet(botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE)).map {
-            val res = BotResponse.toResponse(it)
-            res.token = null
-            res
-        }
+    override fun getAllActiveBots(): List<BotResponse> {
+        return updateAllBotsAndGet(botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE))
+            .map { BotResponse.toResponseWithoutToken(it) }
     }
 
     private fun updateBotInfo(bot: Bot): Bot {
-        findBotById(bot.id)?.let {
+        findBotById(bot.chatId)?.let {
             val user = it.execute(GetMe())
             updateBotPhoto(it, bot)
             bot.username = user.userName
@@ -163,29 +177,36 @@ class BotService(
         }
     }
 
-    fun getOneBot(id: String): BotResponse? {
+    override fun getOneBot(id: String): BotResponse? {
         return botRepository.findByHashIdAndDeletedFalse(id)?.let {
             BotResponse.toResponse(it)
         } ?: throw BotNotFoundException()
     }
 
-    fun deleteBot(id: String) {
-        stopBot(id)
+    @Transactional
+    override fun deleteBot(id: String) {
+        botRepository.findByHashId(id)?.let { bot ->
+            findBotById(bot.chatId)?.let { tgBot ->
+                bot.status = BotStatusEnum.STOPPED
+                botRepository.save(bot)
+                activeBots.remove(tgBot.token)
+            }
+        } ?: throw BotNotFoundException()
         botRepository.deleteByHashId(id)
     }
 
-    fun addBotToOperator(id: String) {
+    override fun addBotToOperator(id: String) {
         botRepository.findByHashId(id)?.let { bot ->
-            bot.operatorIds.add(getUserId())
+            bot.operatorIds.add(userId())
             botRepository.save(bot)
         } ?: run {
             throw BotNotFoundException()
         }
     }
 
-    fun removeBotFromOperator(id: String) {
+    override fun removeBotFromOperator(id: String) {
         botRepository.findByHashId(id)?.let { bot ->
-            val operatorId = getUserId()
+            val operatorId = userId()
             if (bot.operatorIds.contains(operatorId)) {
                 bot.operatorIds.remove(operatorId)
                 botRepository.save(bot)

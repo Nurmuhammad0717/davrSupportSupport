@@ -1,6 +1,5 @@
 package uz.davrmobile.support.bot.backend
 
-import javax.persistence.*
 import org.hibernate.annotations.ColumnDefault
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
@@ -8,6 +7,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener
 import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
 import uz.davrmobile.support.entity.BaseEntity
 import java.util.*
+import javax.persistence.*
 
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener::class)
@@ -45,16 +45,16 @@ class BotUser(
 
 @Entity
 class Bot(
-    @Id val id: Long,
-    @Column(nullable = false) val token: String,
-    @Column(nullable = false) var username: String,
+    @Column(unique = true) val chatId: Long,
+    @Column(unique = true, nullable = false) val token: String,
+    @Column(unique = true, nullable = false) var username: String,
     var name: String,
     @Enumerated(value = EnumType.STRING) var status: BotStatusEnum = BotStatusEnum.ACTIVE,
     @ElementCollection var operatorIds: MutableSet<Long> = mutableSetOf(),
     var miniPhotoId: String? = null,
     var bigPhotoId: String? = null,
     val hashId: String = randomHashId()
-) : BaseUserEntity()
+) : BaseEntity()
 
 @Table(
     indexes = [

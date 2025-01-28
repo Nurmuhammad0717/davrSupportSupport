@@ -3,7 +3,7 @@ package uz.davrmobile.support.bot.backend
 import org.springframework.context.i18n.LocaleContextHolder
 import org.springframework.context.support.ResourceBundleMessageSource
 
-sealed class DBusinessException : RuntimeException() {
+sealed class SupportBotException : RuntimeException() {
 
     abstract fun errorCode(): ErrorCode
 
@@ -20,82 +20,70 @@ sealed class DBusinessException : RuntimeException() {
 }
 
 
-class UserNotFoundException : DBusinessException() {
+class UserNotFoundException : SupportBotException() {
     override fun errorCode() = ErrorCode.USER_NOT_FOUND
 }
 
-class BadCredentialsException : DBusinessException() {
+class BadCredentialsException : SupportBotException() {
     override fun errorCode() = ErrorCode.BAD_CREDENTIALS
 }
 
-class AccessDeniedException : DBusinessException() {
-    override fun errorCode() = ErrorCode.ACCESS_DENIED
-}
-
-class UsernameAlreadyExists : DBusinessException() {
-    override fun errorCode() = ErrorCode.USERNAME_ALREADY_EXISTS
-}
-
-class UserAlreadyExistException : DBusinessException() {
-    override fun errorCode(): ErrorCode = ErrorCode.USER_ALREADY_EXISTS
-}
-
-class UnSupportedMessageTypeException : DBusinessException() {
+class UnSupportedMessageTypeException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.UN_SUPPORTED_MESSAGE_TYPE
 }
 
-class NoSessionInQueue : DBusinessException() {
-    override fun errorCode(): ErrorCode = ErrorCode.NO_SESSION_IN_QUEUE
-}
-
-class SomethingWentWrongException : DBusinessException() {
+class SomethingWentWrongException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.SOMETHING_WENT_WRONG
 }
 
-class SessionNotFoundException : DBusinessException() {
+class SessionNotFoundException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.SESSION_NOT_FOUND
 }
 
-class SessionAlreadyBusyException : DBusinessException() {
+class SessionAlreadyBusyException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.SESSION_ALREADY_BUSY
 }
 
-class SessionClosedException : DBusinessException() {
+class SessionAlreadyClosedException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.SESSION_CLOSED
 }
 
-class MessageNotFoundException : DBusinessException() {
+class MessageNotFoundException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.MESSAGE_NOT_FOUND
 }
 
-class BotNotFoundException : DBusinessException() {
+class BotNotFoundException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.BOT_NOT_FOUND
 }
 
-class BusySessionException : DBusinessException() {
+class BusySessionException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.BUSY_SESSION
 }
 
-class FileNotFoundException : DBusinessException() {
+class FileNotFoundException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.FILE_NOT_FOUND
 }
 
-class OperatorLanguageNotFoundException : DBusinessException() {
+class OperatorLanguageNotFoundException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.OPERATOR_LANGUAGE_NOT_FOUND
 }
 
-class StandardAnswerNotFoundException : DBusinessException() {
+class StandardAnswerNotFoundException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.STANDARD_ANSWER_NOT_FOUND
 }
 
-class StandardAnswerAlreadyExistsException : DBusinessException() {
+class StandardAnswerAlreadyExistsException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.STANDARD_ANSWER_ALREADY_EXISTS
 }
 
-class BotAlreadyStoppedException : DBusinessException() {
+class BotAlreadyStoppedException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.BOT_ALREADY_STOPPED
 }
 
-class BotAlreadyActiveException : DBusinessException() {
+class BotAlreadyActiveException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.BOT_ALREADY_ACTIVE
+}
+
+class NoAuthorityException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.NO_AUTHORITY
 }
