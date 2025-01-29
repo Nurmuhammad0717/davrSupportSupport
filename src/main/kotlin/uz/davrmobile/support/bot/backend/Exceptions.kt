@@ -4,11 +4,8 @@ import org.springframework.context.i18n.LocaleContextHolder
 import org.springframework.context.support.ResourceBundleMessageSource
 
 sealed class SupportBotException : RuntimeException() {
-
     abstract fun errorCode(): ErrorCode
-
     open fun getErrorMessageArguments(): Array<Any?>? = null
-
     fun getErrorMessage(errorMessageSource: ResourceBundleMessageSource): BaseMessage {
         val errorMessage = try {
             errorMessageSource.getMessage(errorCode().name, getErrorMessageArguments(), LocaleContextHolder.getLocale())
@@ -18,7 +15,6 @@ sealed class SupportBotException : RuntimeException() {
         return BaseMessage(errorCode().code, errorMessage)
     }
 }
-
 
 class UserNotFoundException : SupportBotException() {
     override fun errorCode() = ErrorCode.USER_NOT_FOUND
@@ -86,4 +82,18 @@ class BotAlreadyActiveException : SupportBotException() {
 
 class NoAuthorityException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.NO_AUTHORITY
+}
+
+class SessionNotConnectedToOperatorException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.SESSION_NOT_CONNECTED_TO_OPERATOR
+}
+class TextCantBeEmptyException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.TEXT_CANT_BE_EMPTY
+}
+
+class MaximumTextLengthException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.MAXIMUM_TEXT_LENGTH
+}
+class BotTokenNotValidException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.BOT_TOKEN_NOT_VALID
 }

@@ -42,7 +42,6 @@ open class SupportTelegramBot(
     private val sessionRepository: SessionRepository,
     private val messageSource: MessageSource,
     private val fileInfoRepository: FileInfoRepository,
-    private val botRepository: BotRepository,
     private val messageToOperatorService: MessageToOperatorService,
     private val executorService: Executor = Executors.newFixedThreadPool(20),
 ) : TelegramLongPollingBot(token) {
@@ -128,7 +127,7 @@ open class SupportTelegramBot(
                 sendActionTyping(user)
                 if (message.hasText()) {
                     val text = message.text
-                    if (text.contains("^[A-Za-z]+( [A-Za-z]+)*$".toRegex())) {
+                    if (text.contains("^[A-Za-zА-Яа-яЎўҚқҒғҲҳЁёЧчШшЙйъʼ' ]+\$".toRegex())) {
                         updateUserFullName(user, text)
                         sendFullNameSavedMsg(user)
                     } else sendEnterYourFullNameValid(user)
@@ -542,13 +541,6 @@ open class SupportTelegramBot(
         this.execute(sendMessage)
     }
 
-    open fun sendChatStoppedMsg(user: BotUser) {
-        val sendMessage = SendMessage(user.id.toString(), getMsg("CHAT_STOPPED", user).htmlBold())
-        sendMessage.parseMode = ParseMode.HTML
-        sendMessage.replyMarkup = ReplyKeyboardRemove(true)
-        this.execute(sendMessage)
-    }
-
     open fun getMsg(key: String, user: BotUser): String {
         try {
             val locale = Locale.forLanguageTag(user.languages.elementAt(0).name.lowercase())
@@ -596,9 +588,7 @@ open class SupportTelegramBot(
         val sendMessage = SendMessage(user.id.toString(), getMsg("CLICK_TO_SEND_YOUR_PHONE", user))
         val keyboardButton = KeyboardButton(getMsg("SHARE_PHONE_NUMBER", user))
         keyboardButton.requestContact = true
-        val row = KeyboardRow(1)
-        row.add(keyboardButton)
-        val markup = ReplyKeyboardMarkup(listOf(row))
+        val markup = ReplyKeyboardMarkup(listOf(KeyboardRow(listOf(keyboardButton))))
         markup.resizeKeyboard = true
         sendMessage.replyMarkup = markup
         this.execute(sendMessage)
@@ -620,9 +610,5 @@ open class SupportTelegramBot(
         this.execute(sendMessage)
         user.state = UserStateEnum.SEND_FULL_NAME
         userRepository.save(user)
-    }
-
-    open fun getStatusEmojiByBoolean(t: Boolean): String {
-        return if (t) "✅" else "❌"
     }
 }

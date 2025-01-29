@@ -10,6 +10,7 @@ import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands
 import org.telegram.telegrambots.meta.api.objects.UserProfilePhotos
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault
+import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
 import uz.davrmobile.support.bot.backend.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot.Companion.activeBots
@@ -45,12 +46,17 @@ class BotServiceImpl(
     override fun createBot(req: TokenRequest) {
         if (!botRepository.existsByToken((req.token))) {
             val supportTelegramBot = createSupportTelegramBot(req.token)
-            val me = supportTelegramBot.meAsync.get()
-            val savedBot = botRepository.save(Bot(me.id, req.token, me.userName, me.firstName))
-            supportTelegramBot.botId = savedBot.chatId
-            supportTelegramBot.username = me.userName
-            startBot(supportTelegramBot)
-            setDefaultBotCommands(supportTelegramBot)
+            try {
+                val me = supportTelegramBot.meAsync.get()
+                val savedBot = botRepository.save(Bot(me.id, req.token, me.userName, me.firstName))
+                supportTelegramBot.botId = savedBot.chatId
+                supportTelegramBot.username = me.userName
+                startBot(supportTelegramBot)
+                setDefaultBotCommands(supportTelegramBot)
+            } catch (e: TelegramApiRequestException) {
+                if (e.errorCode == 401) throw BotTokenNotValidException()
+                else throw BadCredentialsException()
+            }
         }
     }
 
@@ -67,7 +73,6 @@ class BotServiceImpl(
             sessionRepository,
             messageSource,
             fileInfoRepository,
-            botRepository,
             messageToOperatorServiceImpl
         )
     }

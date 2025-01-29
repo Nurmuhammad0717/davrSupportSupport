@@ -177,91 +177,99 @@ class MessageToOperatorServiceImpl(
     @Transactional
     override fun sendMessage(message: OperatorSentMsgRequest): BotMessageResponse {
         val operatorId = userId()
-        val sessionHashId = message.sessionId!!
-        sessionRepository.findByHashId(sessionHashId)?.let { session ->
-            if (session.operatorId != userId()) throw BusySessionException()
-            val user = session.user
-            val userId = user.id.toString()
-            botRepository.findByChatIdAndDeletedFalse(session.botId)?.let { bot ->
-                SupportTelegramBot.findBotById(bot.chatId)?.let { absSender ->
-                    when (message.type!!) {
-                        BotMessageType.TEXT -> {
-                            message.text?.let { text ->
-                                val send = SendMessage(userId, text)
-                                send.replyToMessageId = message.replyMessageId
-                                val ex = absSender.execute(send)
-                                return BotMessageResponse.toResponse(
-                                    newSessionMsg(
-                                        message, session, operatorId, ex.messageId
-                                    )
-                                )
-                            } ?: throw BadCredentialsException()
-                        }
 
-                        BotMessageType.VIDEO, BotMessageType.PHOTO, BotMessageType.VOICE, BotMessageType.AUDIO, BotMessageType.DOCUMENT -> {
-                            message.fileIds?.let { fileHashIds ->
-                                val inputMediaList: MutableList<InputMedia> = mutableListOf()
-                                for (fileHashId in fileHashIds) {
-                                    val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
-                                    inputMediaList.add(getInputMediaByFileInfo(fileInfo, message.caption))
-                                }
-                                return sendMediaGroup(userId, inputMediaList, absSender, message, session, operatorId)
-                            } ?: throw BadCredentialsException()
-                        }
+        if (message.sessionId == null) throw BadCredentialsException()
+        val session = sessionRepository.findByHashId(message.sessionId) ?: throw SessionNotFoundException()
 
-                        BotMessageType.ANIMATION -> {
-                            message.fileIds?.let { fileHashIds ->
-                                var lastMsg: BotMessageResponse? = null
-                                for (fileHashId in fileHashIds) {
-                                    val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
-                                    val send = SendAnimation()
-                                    send.chatId = userId
-                                    send.animation =
-                                        InputFile(File(Paths.get(fileInfo.path).toAbsolutePath().toString()))
-                                    send.caption = message.caption
-                                    send.replyToMessageId = message.replyMessageId
-                                    val ex = absSender.execute(send)
-                                    lastMsg = BotMessageResponse.toResponse(
-                                        newSessionMsg(
-                                            message, session, operatorId, ex.messageId, fileInfos = listOf(fileInfo)
-                                        )
-                                    )
-                                }
-                                return lastMsg!!
-                            }
-                        }
+        if (session.operatorId == null) throw SessionNotConnectedToOperatorException()
+        if (session.operatorId != userId()) throw BusySessionException()
 
-                        BotMessageType.LOCATION -> {
-                            message.location?.let {
-                                val send = SendLocation(userId, it.latitude, it.longitude)
-                                send.replyToMessageId = message.replyMessageId
-                                val ex = absSender.execute(send)
-                                return BotMessageResponse.toResponse(
-                                    newSessionMsg(
-                                        message, session, operatorId, ex.messageId, location = send
-                                    )
-                                )
-                            } ?: throw BadCredentialsException()
-                        }
+        val userId = session.user.id.toString()
 
-                        BotMessageType.CONTACT -> {
-                            message.contact?.let {
-                                val send = SendContact(userId, it.phoneNumber, it.name)
-                                send.replyToMessageId = message.replyMessageId
-                                val ex = absSender.execute(send)
-                                return BotMessageResponse.toResponse(
-                                    newSessionMsg(
-                                        message, session, operatorId, ex.messageId, contact = send
-                                    )
-                                )
-                            } ?: throw BadCredentialsException()
-                        }
+        val bot = botRepository.findByChatIdAndDeletedFalse(session.botId) ?: throw BotNotFoundException()
+        val absSender = SupportTelegramBot.findBotById(bot.chatId) ?: throw BotNotFoundException()
 
-                        else -> throw UnSupportedMessageTypeException()
-                    }
-                } ?: throw BotNotFoundException()
-            } ?: throw BotNotFoundException()
-        } ?: throw SessionNotFoundException()
+        return when (message.type!!) {
+            BotMessageType.TEXT -> {
+                message.text?.let { text ->
+                    if (text.length > 4096) throw MaximumTextLengthException()
+                    if (text.isEmpty()) throw TextCantBeEmptyException()
+                    val send = SendMessage(userId, text)
+                    send.replyToMessageId = message.replyMessageId
+                    val ex = absSender.execute(send)
+                    BotMessageResponse.toResponse(
+                        newSessionMsg(
+                            message, session, operatorId, ex.messageId
+                        )
+                    )
+                } ?: throw BadCredentialsException()
+            }
+
+            BotMessageType.CONTACT -> {
+                val it = message.contact ?: throw BadCredentialsException()
+                val send = SendContact(userId, it.phoneNumber, it.name)
+                send.replyToMessageId = message.replyMessageId
+                val ex = absSender.execute(send)
+                BotMessageResponse.toResponse(
+                    newSessionMsg(
+                        message, session, operatorId, ex.messageId, contact = send
+                    )
+                )
+            }
+
+            BotMessageType.LOCATION -> {
+                message.location?.let {
+                    val send = SendLocation(userId, it.latitude, it.longitude)
+                    send.replyToMessageId = message.replyMessageId
+                    val ex = absSender.execute(send)
+                    BotMessageResponse.toResponse(
+                        newSessionMsg(
+                            message, session, operatorId, ex.messageId, location = send
+                        )
+                    )
+                } ?: throw BadCredentialsException()
+            }
+
+            BotMessageType.ANIMATION -> {
+                val fileHashIds = message.fileIds ?: throw BadCredentialsException()
+                if (fileHashIds.isEmpty()) throw BadCredentialsException()
+
+                var lastMsg: BotMessageResponse? = null
+                for (fileHashId in fileHashIds) {
+                    val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
+                    val send = SendAnimation()
+                    send.chatId = userId
+                    send.animation =
+                        InputFile(File(Paths.get(fileInfo.path).toAbsolutePath().toString()))
+                    if (!message.caption.isNullOrEmpty())
+                        if (message.caption.length > 4096)
+                            throw MaximumTextLengthException()
+                        else send.caption = message.caption
+                    send.replyToMessageId = message.replyMessageId
+                    val ex = absSender.execute(send)
+                    lastMsg = BotMessageResponse.toResponse(
+                        newSessionMsg(
+                            message, session, operatorId, ex.messageId, fileInfos = listOf(fileInfo)
+                        )
+                    )
+                }
+                lastMsg!!
+            }
+
+            BotMessageType.VIDEO, BotMessageType.PHOTO, BotMessageType.VOICE, BotMessageType.AUDIO, BotMessageType.DOCUMENT -> {
+                val fileHashIds = message.fileIds ?: throw BadCredentialsException()
+                if (fileHashIds.isEmpty()) throw BadCredentialsException()
+
+                val inputMediaList: MutableList<InputMedia> = mutableListOf()
+                for (fileHashId in fileHashIds) {
+                    val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
+                    inputMediaList.add(getInputMediaByFileInfo(fileInfo, message.caption))
+                }
+                sendMediaGroup(userId, inputMediaList, absSender, message, session, operatorId)
+            }
+
+            else -> throw UnSupportedMessageTypeException()
+        }
     }
 
     private fun newSessionMsg(
@@ -307,7 +315,10 @@ class MessageToOperatorServiceImpl(
             for ((index, inputMedia) in inputMediaList.withIndex()) {
                 val send = InputMediaDocument()
                 send.setMedia(inputMedia.newMediaFile, inputMedia.mediaName)
-                if (inputMediaList.size - 1 == index) send.caption = caption
+                if (inputMediaList.size - 1 == index && !caption.isNullOrEmpty())
+                    if (message.caption.length > 4096)
+                        throw MaximumTextLengthException()
+                    else send.caption = message.caption
                 inputMediaListTemp.add(send)
             }
         } else inputMediaListTemp = inputMediaList
@@ -316,51 +327,66 @@ class MessageToOperatorServiceImpl(
             val media = inputMediaListTemp[0]
             val inputFile = InputFile().apply { setMedia(media.newMediaFile, media.mediaName) }
 
+
             val ex = when (media) {
                 is InputMediaAnimation -> {
-                    val send = SendAnimation()
-                    send.chatId = userId
-                    send.animation = inputFile
-                    send.caption = caption
-                    send.replyToMessageId = replyMessageId
-                    absSender.execute(send)
+                    absSender.execute(SendAnimation().apply {
+                        chatId = userId
+                        animation = inputFile
+                        if (!caption.isNullOrEmpty())
+                            if (message.caption.length > 4096)
+                                throw MaximumTextLengthException()
+                            else this.caption = caption
+                        replyToMessageId = replyMessageId
+                    })
                 }
 
                 is InputMediaVideo -> {
-                    val send = SendVideo()
-                    send.chatId = userId
-                    send.video = inputFile
-                    send.caption = caption
-                    send.replyToMessageId = replyMessageId
-                    absSender.execute(send)
+                    absSender.execute(SendVideo().apply {
+                        chatId = userId
+                        video = inputFile
+                        if (!caption.isNullOrEmpty())
+                            if (message.caption.length > 4096)
+                                throw MaximumTextLengthException()
+                            else this.caption = caption
+                        replyToMessageId = replyMessageId
+                    })
                 }
 
                 is InputMediaPhoto -> {
-                    val send = SendPhoto(userId, inputFile)
-                    send.chatId = userId
-                    send.photo = inputFile
-                    send.caption = caption
-                    send.replyToMessageId = replyMessageId
-                    absSender.execute(send)
+                    absSender.execute(SendPhoto(userId, inputFile).apply {
+                        chatId = userId
+                        photo = inputFile
+                        if (!caption.isNullOrEmpty())
+                            if (message.caption.length > 4096)
+                                throw MaximumTextLengthException()
+                            else this.caption = caption
+                        replyToMessageId = replyMessageId
+                    })
                 }
 
                 is InputMediaAudio -> {
-                    val send = SendAudio()
-                    send.chatId = userId
-                    send.audio = inputFile
-                    send.caption = caption
-                    send.replyToMessageId = replyMessageId
-                    absSender.execute(send)
+                    absSender.execute(SendAudio().apply {
+                        chatId = userId
+                        audio = inputFile
+                        if (!caption.isNullOrEmpty())
+                            if (message.caption.length > 4096)
+                                throw MaximumTextLengthException()
+                            else this.caption = caption
+                        replyToMessageId = replyMessageId
+                    })
                 }
 
                 else -> {
-                    val send = SendDocument().apply {
+                    absSender.execute(SendDocument().apply {
                         chatId = userId
                         document = inputFile
-                        this.caption = caption
-                        this.replyToMessageId = replyMessageId
-                    }
-                    absSender.execute(send)
+                        if (!caption.isNullOrEmpty())
+                            if (message.caption.length > 4096)
+                                throw MaximumTextLengthException()
+                            else this.caption = caption
+                        replyToMessageId = replyMessageId
+                    })
                 }
             }
             return BotMessageResponse.toResponse(
@@ -379,6 +405,7 @@ class MessageToOperatorServiceImpl(
             return lastMsg!!
         } else {
             val send = SendMediaGroup(userId, inputMediaListTemp)
+            send.protectContent = true
             send.replyToMessageId = replyMessageId
             val exs = absSender.execute(send)
             var lastMsg: BotMessage? = null
@@ -406,7 +433,8 @@ class MessageToOperatorServiceImpl(
             else -> InputMediaDocument()
         }
         inputMedia.setMedia(filePath, fileName)
-        inputMedia.caption = caption
+        if (!caption.isNullOrEmpty())
+            inputMedia.caption = caption
         return inputMedia
     }
 
@@ -443,31 +471,34 @@ class MessageToOperatorServiceImpl(
                         bot.execute(send)
                     }
                 }
+                msg.hasRead = false
             }
         }
 
         caption?.let {
-            if (msg.botMessageType in listOf(
-                    BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
-                )
-            ) {
-                if (msg.originalCaption == null) msg.originalCaption = msg.caption
-                msg.caption = it
+            if (it.isNotEmpty()) {
+                if (msg.botMessageType in listOf(
+                        BotMessageType.PHOTO, BotMessageType.VIDEO, BotMessageType.DOCUMENT, BotMessageType.ANIMATION
+                    )
+                ) {
+                    if (msg.originalCaption == null) msg.originalCaption = msg.caption
+                    msg.caption = it
 
-                if (msg.user == null) {
-                    val session = msg.session
-                    val userId = session.user.id.toString()
-                    SupportTelegramBot.findBotById(session.botId)?.let { bot ->
-                        val send = EditMessageCaption()
-                        send.chatId = userId
-                        send.messageId = msg.messageId
-                        send.caption = it
-                        bot.execute(send)
+                    if (msg.user == null) {
+                        val session = msg.session
+                        val userId = session.user.id.toString()
+                        SupportTelegramBot.findBotById(session.botId)?.let { bot ->
+                            val send = EditMessageCaption()
+                            send.chatId = userId
+                            send.messageId = msg.messageId
+                            send.caption = it
+                            bot.execute(send)
+                        }
                     }
+                    msg.hasRead = false
                 }
             }
         }
-        msg.hasRead = false
         botMessageRepository.save(msg)
     }
 

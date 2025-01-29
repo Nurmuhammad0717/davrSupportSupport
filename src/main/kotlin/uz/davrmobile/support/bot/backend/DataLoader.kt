@@ -42,7 +42,6 @@ class DataLoader(
                 sessionRepository,
                 messageSource,
                 fileInfoRepository,
-                botRepository,
                 messageToOperatorServiceImpl
             )
             val me = supportTelegramBot.meAsync.get()
