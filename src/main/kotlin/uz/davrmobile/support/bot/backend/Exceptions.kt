@@ -84,9 +84,14 @@ class NoAuthorityException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.NO_AUTHORITY
 }
 
+class InformationNotFoundException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.INFORMATION_NOT_FOUND
+}
+
 class SessionNotConnectedToOperatorException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.SESSION_NOT_CONNECTED_TO_OPERATOR
 }
+
 class TextCantBeEmptyException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.TEXT_CANT_BE_EMPTY
 }
@@ -94,6 +99,7 @@ class TextCantBeEmptyException : SupportBotException() {
 class MaximumTextLengthException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.MAXIMUM_TEXT_LENGTH
 }
+
 class BotTokenNotValidException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.BOT_TOKEN_NOT_VALID
 }

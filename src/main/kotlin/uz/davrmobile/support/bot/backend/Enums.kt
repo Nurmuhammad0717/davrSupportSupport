@@ -25,7 +25,8 @@ enum class ErrorCode(val code: Int) {
     SESSION_NOT_CONNECTED_TO_OPERATOR(651),
     TEXT_CANT_BE_EMPTY(652),
     MAXIMUM_TEXT_LENGTH(653),
-    BOT_TOKEN_NOT_VALID(654)
+    BOT_TOKEN_NOT_VALID(654),
+    INFORMATION_NOT_FOUND(655)
 }
 
 enum class UserRole {

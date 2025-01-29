@@ -656,23 +656,23 @@ class StatisticServiceImpl(private val sessionRepository: SessionRepository) : S
             startDate,
             endDate,
             userId()
-        )
+        )?: throw InformationNotFoundException()
         if (isAdmin()) {
-            return sessionRepository.findSessionInfoByOperatorIdDateRange(startDate, endDate, operatorId)
+            return sessionRepository.findSessionInfoByOperatorIdDateRange(startDate, endDate, operatorId)?: throw InformationNotFoundException()
         } else throw NoAuthorityException()
     }
 
     override fun getSessionByOperatorDateRange(operatorId: Long?, date: Date): SessionInfoByOperatorResponse {
-        if (operatorId == null) return sessionRepository.findSessionInfoByOperatorIdAndDate(date, userId())
+        if (operatorId == null) return sessionRepository.findSessionInfoByOperatorIdAndDate(date, userId())?: throw InformationNotFoundException()
         if (isAdmin()) {
-            return sessionRepository.findSessionInfoByOperatorIdAndDate(date, operatorId)
+            return sessionRepository.findSessionInfoByOperatorIdAndDate(date, operatorId)?: throw InformationNotFoundException()
         } else throw NoAuthorityException()
     }
 
     override fun getSessionByOperatorDateRange(operatorId: Long?): SessionInfoByOperatorResponse {
-        if (operatorId == null) return sessionRepository.findSessionInfoByOperatorId(userId())
+        if (operatorId == null) return sessionRepository.findSessionInfoByOperatorId(userId())?: throw InformationNotFoundException()
         if (isAdmin()) {
-            return sessionRepository.findSessionInfoByOperatorId(operatorId)
+            return sessionRepository.findSessionInfoByOperatorId(operatorId)?: throw InformationNotFoundException()
         } else throw NoAuthorityException()
     }
 

@@ -272,11 +272,10 @@ data class OperatorEditMsgRequest(
     @Nullable val caption: String?,
 )
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 data class OperatorStatisticRequest(
-    @Nullable val operatorId: Long?,
-    @Nullable val startDate: Date?,
-    @Nullable val endDate: Date?
+     val operatorId: Long?,
+     val startDate: Date?,
+     val endDate: Date?
 )
 
 data class SavedTgFileResponse(
