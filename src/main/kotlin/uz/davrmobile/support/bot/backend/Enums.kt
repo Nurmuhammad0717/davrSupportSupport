@@ -21,7 +21,8 @@ enum class ErrorCode(val code: Int) {
     STANDARD_ANSWER_ALREADY_EXISTS(647),
     BOT_ALREADY_STOPPED(648),
     BOT_ALREADY_ACTIVE(649),
-    NO_AUTHORITY(650)
+    NO_AUTHORITY(650),
+    INFORMATION_NOT_FOUND(651)
 }
 
 enum class UserRole {

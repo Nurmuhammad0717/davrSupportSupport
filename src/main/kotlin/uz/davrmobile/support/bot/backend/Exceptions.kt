@@ -87,3 +87,7 @@ class BotAlreadyActiveException : SupportBotException() {
 class NoAuthorityException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.NO_AUTHORITY
 }
+
+class InformationNotFoundException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.INFORMATION_NOT_FOUND
+}

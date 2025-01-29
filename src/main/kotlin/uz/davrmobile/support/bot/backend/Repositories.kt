@@ -195,14 +195,14 @@ interface SessionRepository : BaseRepository<Session> {
         startDate: Date,
         endDate: Date,
         operatorId: Long
-    ): SessionInfoByOperatorResponse
+    ): SessionInfoByOperatorResponse?
 
     @Query(
         """
     SELECT 
-        s.operator_id AS operatorId,
-        COUNT(DISTINCT s.id) AS sessionCount,
-        COUNT(m.id) AS messageCount,
+        COALESCE(s.operator_id,0) AS operatorId,
+        COALESCE(COUNT(DISTINCT s.id),0) AS sessionCount,
+        COALESCE(COUNT(m.id),0) AS messageCount,
         COALESCE(AVG(s.rate), 0) AS avgRate
     FROM session s
     LEFT JOIN bot_message m ON s.id = m.session_id
@@ -215,14 +215,14 @@ interface SessionRepository : BaseRepository<Session> {
     fun findSessionInfoByOperatorIdAndDate(
         @Param("thisDate") thisDate: Date,
         @Param("operatorId") operatorId: Long
-    ): SessionInfoByOperatorResponse
+    ): SessionInfoByOperatorResponse?
 
     @Query(
         """
     SELECT 
-        s.operator_id AS operatorId,
-        COUNT(DISTINCT s.id) AS sessionCount,
-        COUNT(m.id) AS messageCount,
+        COALESCE(s.operator_id,0) AS operatorId,
+        COALESCE(COUNT(DISTINCT s.id),0) AS sessionCount,
+        COALESCE(COUNT(m.id),0) AS messageCount,
         COALESCE(AVG(s.rate), 0) AS avgRate
     FROM session s
     LEFT JOIN bot_message m ON s.id = m.session_id
@@ -231,7 +231,7 @@ interface SessionRepository : BaseRepository<Session> {
     """,
         nativeQuery = true
     )
-    fun findSessionInfoByOperatorId(operatorId: Long): SessionInfoByOperatorResponse
+    fun findSessionInfoByOperatorId(operatorId: Long): SessionInfoByOperatorResponse?
 
 
 }
