@@ -2,8 +2,6 @@ package uz.davrmobile.support.bot.backend
 
 import org.springframework.boot.CommandLineRunner
 import org.springframework.context.MessageSource
-import org.springframework.context.annotation.Bean
-import org.springframework.context.support.ResourceBundleMessageSource
 import org.springframework.stereotype.Component
 import uz.davrmobile.support.bot.bot.BotService
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
@@ -21,6 +19,7 @@ class DataLoader(
     private val messageSource: MessageSource,
     private val botService: BotService,
     private val fileInfoRepository: FileInfoRepository,
+    private val messageToOperatorServiceImpl: MessageToOperatorServiceImpl,
 ) : CommandLineRunner {
     override fun run(vararg args: String?) {
         val dir = java.io.File("./files")
@@ -42,10 +41,11 @@ class DataLoader(
                 diceRepository,
                 sessionRepository,
                 messageSource,
-                fileInfoRepository
+                fileInfoRepository,
+                messageToOperatorServiceImpl
             )
             val me = supportTelegramBot.meAsync.get()
-            supportTelegramBot.botId = bot.id!!
+            supportTelegramBot.botId = bot.chatId
             supportTelegramBot.username = me.userName
 
             botService.registerBot(supportTelegramBot)

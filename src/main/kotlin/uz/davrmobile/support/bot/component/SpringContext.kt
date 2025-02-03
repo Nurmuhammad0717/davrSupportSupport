@@ -17,9 +17,5 @@ class SpringContext : ApplicationContextAware {
         fun <T> getBean(beanClass: Class<T>): T {
             return context.getBean(beanClass)
         }
-
-        fun getBean(beanName: String): Any {
-            return context.getBean(beanName)
-        }
     }
 }

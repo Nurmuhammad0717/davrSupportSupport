@@ -3,12 +3,9 @@ package uz.davrmobile.support.bot.backend
 import org.springframework.context.i18n.LocaleContextHolder
 import org.springframework.context.support.ResourceBundleMessageSource
 
-sealed class DBusinessException : RuntimeException() {
-
+sealed class SupportBotException : RuntimeException() {
     abstract fun errorCode(): ErrorCode
-
     open fun getErrorMessageArguments(): Array<Any?>? = null
-
     fun getErrorMessage(errorMessageSource: ResourceBundleMessageSource): BaseMessage {
         val errorMessage = try {
             errorMessageSource.getMessage(errorCode().name, getErrorMessageArguments(), LocaleContextHolder.getLocale())
@@ -19,55 +16,90 @@ sealed class DBusinessException : RuntimeException() {
     }
 }
 
-
-class UserNotFoundException : DBusinessException() {
+class UserNotFoundException : SupportBotException() {
     override fun errorCode() = ErrorCode.USER_NOT_FOUND
 }
 
-class BadCredentialsException : DBusinessException() {
+class BadCredentialsException : SupportBotException() {
     override fun errorCode() = ErrorCode.BAD_CREDENTIALS
 }
 
-class AccessDeniedException : DBusinessException() {
-    override fun errorCode() = ErrorCode.ACCESS_DENIED
-}
-
-class UsernameAlreadyExists : DBusinessException() {
-    override fun errorCode() = ErrorCode.USERNAME_ALREADY_EXISTS
-}
-
-class UserAlreadyExistException : DBusinessException() {
-    override fun errorCode(): ErrorCode = ErrorCode.USER_ALREADY_EXISTS
-}
-
-class UnSupportedMessageType : DBusinessException() {
+class UnSupportedMessageTypeException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.UN_SUPPORTED_MESSAGE_TYPE
 }
 
-class NoSessionInQueue : DBusinessException() {
-    override fun errorCode(): ErrorCode = ErrorCode.NO_SESSION_IN_QUEUE
-}
-
-class SomethingWentWrongException : DBusinessException() {
+class SomethingWentWrongException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.SOMETHING_WENT_WRONG
 }
 
-class SessionNotFoundExistException : DBusinessException() {
+class SessionNotFoundException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.SESSION_NOT_FOUND
 }
 
-class SessionAlreadyBusyException : DBusinessException() {
+class SessionAlreadyBusyException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.SESSION_ALREADY_BUSY
 }
 
-class SessionClosedException : DBusinessException() {
+class SessionAlreadyClosedException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.SESSION_CLOSED
 }
 
-class MessageNotFoundException : DBusinessException() {
+class MessageNotFoundException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.MESSAGE_NOT_FOUND
 }
 
-class BotNotFoundException : DBusinessException() {
+class BotNotFoundException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.BOT_NOT_FOUND
+}
+
+class BusySessionException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.BUSY_SESSION
+}
+
+class FileNotFoundException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.FILE_NOT_FOUND
+}
+
+class OperatorLanguageNotFoundException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.OPERATOR_LANGUAGE_NOT_FOUND
+}
+
+class StandardAnswerNotFoundException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.STANDARD_ANSWER_NOT_FOUND
+}
+
+class StandardAnswerAlreadyExistsException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.STANDARD_ANSWER_ALREADY_EXISTS
+}
+
+class BotAlreadyStoppedException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.BOT_ALREADY_STOPPED
+}
+
+class BotAlreadyActiveException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.BOT_ALREADY_ACTIVE
+}
+
+class NoAuthorityException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.NO_AUTHORITY
+}
+
+class InformationNotFoundException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.INFORMATION_NOT_FOUND
+}
+
+class SessionNotConnectedToOperatorException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.SESSION_NOT_CONNECTED_TO_OPERATOR
+}
+
+class TextCantBeEmptyException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.TEXT_CANT_BE_EMPTY
+}
+
+class MaximumTextLengthException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.MAXIMUM_TEXT_LENGTH
+}
+
+class BotTokenNotValidException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.BOT_TOKEN_NOT_VALID
 }
