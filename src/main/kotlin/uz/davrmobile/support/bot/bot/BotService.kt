@@ -1,6 +1,8 @@
 package uz.davrmobile.support.bot.bot
 
 import org.springframework.context.MessageSource
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.telegram.telegrambots.meta.TelegramBotsApi
@@ -20,9 +22,9 @@ import uz.davrmobile.support.util.userId
 interface BotService {
     fun createBot(req: TokenRequest)
     fun registerBot(bot: SupportTelegramBot)
-    fun changeStatus(id: String, status: String)
-    fun getAllBots(): List<BotResponse>
-    fun getAllActiveBots(): List<BotResponse>
+    fun changeStatus(id: String)
+    fun getAllBots(pageable: Pageable, status: BotStatusEnum?): Page<BotResponse>
+    fun getAllActiveBots(pageable: Pageable): Page<BotResponse>
     fun getOneBot(id: String): BotResponse?
     fun deleteBot(id: String)
     fun addBotToOperator(id: String)
@@ -87,30 +89,25 @@ class BotServiceImpl(
         telegramBot.registerBot(bot)
     }
 
-    override fun changeStatus(id: String, status: String) {
-        if (status == "stop") {
-            botRepository.findByHashId(id)?.let { bot ->
-                findBotById(bot.chatId)?.let { tgBot ->
-                    bot.status = BotStatusEnum.STOPPED
-                    botRepository.save(bot)
-                    activeBots.remove(tgBot.token)
-                } ?: throw BotAlreadyStoppedException()
-            } ?: throw BotNotFoundException()
-        } else if (status == "active") {
-            botRepository.findByHashId(id)?.let { bot ->
-                findBotById(bot.chatId)?.let {
-                    throw BotAlreadyActiveException()
-                } ?: run {
-                    findBotById(bot.chatId) ?: run {
-                        val tgBot = createSupportTelegramBot(bot.token)
-                        val me = tgBot.meAsync.get()
-                        tgBot.botId = bot.chatId
-                        tgBot.username = me.userName
-                        updateBotPhoto(tgBot, bot)
-                        startBot(tgBot)
-                    }
-                }
-            } ?: throw BotNotFoundException()
+    override fun changeStatus(id: String) {
+        val bot = botRepository.findByHashId(id) ?: throw BotNotFoundException()
+        val status = bot.status.toString().lowercase()
+        if (status == "active") {
+            val tgBot = findBotById(bot.chatId) ?: throw BotAlreadyStoppedException()
+            bot.status = BotStatusEnum.STOPPED
+            botRepository.save(bot)
+            activeBots.remove(tgBot.token)
+        } else if (status == "stop") {
+            findBotById(bot.chatId)?.let {
+                throw BotAlreadyActiveException()
+            } ?: run {
+                val tgBot = createSupportTelegramBot(bot.token)
+                val me = tgBot.meAsync.get()
+                tgBot.botId = bot.chatId
+                tgBot.username = me.userName
+                updateBotPhoto(tgBot, bot)
+                startBot(tgBot)
+            }
         }
     }
 
@@ -119,23 +116,22 @@ class BotServiceImpl(
         if (photos.size > 0) {
             val photo = photos[0]
             val miniPhotoSize = photo[0]
-            val bigPhotoSize = photo[photo.lastIndex]
             bot.miniPhotoId?.let {
                 fileInfoRepository.findByHashId(it)?.let { fileInfo ->
                     if (miniPhotoSize.fileSize.toLong() == fileInfo.size) return
                 }
             }
+            val bigPhotoSize = photo[photo.lastIndex]
             bot.miniPhotoId = fileInfoRepository.save(tgBot.saveFile(miniPhotoSize.fileId).toEntity()).hashId
-            bot.bigPhotoId =
-                if (miniPhotoSize.fileId == bigPhotoSize.fileId)
-                    fileInfoRepository.save(tgBot.saveFile(bigPhotoSize.fileId).toEntity()).hashId
-                else bot.miniPhotoId
+            bot.bigPhotoId = if (miniPhotoSize.fileId != bigPhotoSize.fileId)
+                fileInfoRepository.save(tgBot.saveFile(bigPhotoSize.fileId).toEntity()).hashId
+            else bot.miniPhotoId
             botRepository.save(bot)
         }
     }
 
     private fun getBotPhotos(tgBot: SupportTelegramBot): UserProfilePhotos {
-        return tgBot.execute(GetUserProfilePhotos(tgBot.botId))
+        return tgBot.execute(GetUserProfilePhotos(tgBot.botId, 0, 1))
     }
 
     private fun setDefaultBotCommands(bot: SupportTelegramBot) {
@@ -156,13 +152,20 @@ class BotServiceImpl(
         bot.execute(SetMyCommands(commandsUZ, BotCommandScopeDefault(), "uz"))
     }
 
-    override fun getAllBots(): List<BotResponse> {
-        return updateAllBotsAndGet(botRepository.findAllByDeletedFalse())
+    override fun getAllBots(pageable: Pageable, status: BotStatusEnum?): Page<BotResponse> {
+        return status?.let {
+            updateAllBotsAndGet(
+                botRepository.findAllBotsByStatusAndDeletedFalse(
+                    pageable,
+                    status
+                )
+            ).map { BotResponse.toResponse(it) }
+        } ?: updateAllBotsAndGet(botRepository.findAllByDeletedFalse(pageable))
             .map { BotResponse.toResponse(it) }
     }
 
-    override fun getAllActiveBots(): List<BotResponse> {
-        return updateAllBotsAndGet(botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE))
+    override fun getAllActiveBots(pageable: Pageable): Page<BotResponse> {
+        return updateAllBotsAndGet(botRepository.findAllBotsByStatusAndDeletedFalse(BotStatusEnum.ACTIVE, pageable))
             .map { BotResponse.toResponseWithoutToken(it) }
     }
 
@@ -176,7 +179,7 @@ class BotServiceImpl(
         return bot
     }
 
-    private fun updateAllBotsAndGet(bots: List<Bot>): List<Bot> {
+    private fun updateAllBotsAndGet(bots: Page<Bot>): Page<Bot> {
         return bots.map {
             botRepository.save(updateBotInfo(it))
         }

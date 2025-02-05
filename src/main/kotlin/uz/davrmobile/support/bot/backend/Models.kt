@@ -4,22 +4,26 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
 import org.springframework.data.domain.Page
+import uz.davrmobile.support.util.userId
 import java.util.*
 
 data class BaseMessage(val code: Int, val message: String?)
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 data class UserResponse(
     val id: Long,
     val username: String,
     val fullName: String,
     val phoneNumber: String,
     val language: Set<LanguageEnum>,
-    val role: UserRole?
+    val role: UserRole?,
+    val miniPhotoId: String?,
+    val bigPhotoId: String?,
 ) {
     companion object {
         fun toResponse(botUser: BotUser): UserResponse {
             botUser.run {
-                return UserResponse(id, username, fullName, phoneNumber, languages, role)
+                return UserResponse(id, username, fullName, phoneNumber, languages, role, miniPhotoId, bigPhotoId)
             }
         }
     }
@@ -38,34 +42,44 @@ data class BotResponse(
     var token: String?,
     val miniPhotoId: String?,
     val bigPhotoId: String?,
+    val isJoined: Boolean,
 ) {
     companion object {
         fun toResponse(bot: Bot): BotResponse {
             return bot.run {
-                BotResponse(hashId, username, name, status, token, miniPhotoId, bigPhotoId)
+                BotResponse(
+                    hashId, username, name, status, token, miniPhotoId, bigPhotoId, bot.operatorIds.contains(userId())
+                )
             }
         }
 
         fun toResponseWithoutToken(bot: Bot): BotResponse {
             return bot.run {
-                BotResponse(hashId, username, name, status, null, miniPhotoId, bigPhotoId)
+                BotResponse(
+                    hashId, username, name, status, null, miniPhotoId, bigPhotoId, bot.operatorIds.contains(userId())
+                )
             }
         }
     }
 }
 
 data class GetSessionsResponse(
-    val myConnectedSessions: List<SessionResponse>, val waitingSessions: Page<SessionResponse>
+    val sessions: List<SessionResponse>
 )
 
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 data class UserSessionResponse(
     val id: Long,
     val fullName: String,
+    val miniPhotoId: String?,
+    val bigPhotoId: String?,
 ) {
     companion object {
         fun toResponse(user: BotUser): UserSessionResponse {
-            return UserSessionResponse(user.id, user.fullName)
+            user.run {
+                return UserSessionResponse(id, fullName, miniPhotoId, bigPhotoId)
+            }
         }
     }
 }
@@ -77,10 +91,13 @@ data class SessionResponse(
     val status: SessionStatusEnum,
     val newMessagesCount: Int,
     val language: LanguageEnum,
-    val date: Long
+    val date: Long,
+    var lastMessage: BotMessageResponse? = null,
 ) {
     companion object {
-        fun toResponse(session: Session, messageCount: Int, bot: Bot): SessionResponse {
+        fun toResponse(
+            session: Session, messageCount: Int, bot: Bot, lastMessage: BotMessageResponse?
+        ): SessionResponse {
             session.run {
                 return SessionResponse(
                     hashId,
@@ -89,7 +106,8 @@ data class SessionResponse(
                     status!!,
                     messageCount,
                     language,
-                    createdDate!!.toInstant().epochSecond
+                    createdDate!!.toInstant().toEpochMilli(),
+                    lastMessage
                 )
             }
         }
@@ -97,12 +115,10 @@ data class SessionResponse(
 }
 
 data class SessionMessagesResponse(
-    val sessionId: String,
-    val from: UserResponse,
-    val messages: List<BotMessageResponse>
+    val sessionId: String, val from: UserResponse, val messages: Page<BotMessageResponse>
 ) {
     companion object {
-        fun toResponse(session: Session, unreadMessages: List<BotMessage>): SessionMessagesResponse {
+        fun toResponse(session: Session, unreadMessages: Page<BotMessage>): SessionMessagesResponse {
             return session.run {
                 SessionMessagesResponse(
                     hashId, UserResponse.toResponse(user), unreadMessages.map { BotMessageResponse.toResponse(it) })
@@ -124,16 +140,20 @@ data class BotMessageResponse(
     val location: LocationResponse?,
     val contact: ContactResponse?,
     val dice: DiceResponse?,
-    var edited: Boolean = false
+    var edited: Boolean = false,
+    var from: Long
 ) {
     companion object {
         fun toResponse(botMessage: BotMessage): BotMessageResponse {
             botMessage.run {
                 return BotMessageResponse(
                     hashId,
-                    messageId, botMessageType,
-                    replyMessageId, text, caption,
-                    createdDate!!.toInstant().epochSecond,
+                    messageId,
+                    botMessageType,
+                    replyMessageId,
+                    text,
+                    caption,
+                    createdDate!!.toInstant().toEpochMilli(),
                     files?.let {
                         if (it.isNotEmpty()) it.map { u -> u.hashId }
                         else null
@@ -142,6 +162,7 @@ data class BotMessageResponse(
                     contact?.let { ContactResponse.toResponse(it) },
                     dice?.let { DiceResponse.toResponse(it) },
                     (botMessage.originalText != null || botMessage.originalCaption != null),
+                    botMessage.fromOperatorId ?: botMessage.user!!.id
                 )
 
             }
@@ -264,6 +285,12 @@ interface SessionInfoByOperatorResponse {
     val avgRate: Double?
 }
 
+interface LastMessageWithCount {
+    val lastMessage: BotMessage?
+    val unreadMessageCount: Int
+    val bot: Bot?
+}
+
 data class OperatorEditMsgRequest(
     val sessionId: String?,
     val type: BotMessageType?,
@@ -273,9 +300,7 @@ data class OperatorEditMsgRequest(
 )
 
 data class OperatorStatisticRequest(
-     val operatorId: Long?,
-     val startDate: Date?,
-     val endDate: Date?
+    val operatorId: Long?, val startDate: Date?, val endDate: Date?
 )
 
 data class SavedTgFileResponse(
@@ -295,8 +320,4 @@ data class GetOperatorBotsResponse(
 
 data class UploadFileResponse(
     val files: List<FileInfoResponse>
-)
-
-data class GetAllUsersResponse(
-    val users: Page<UserResponse>
 )

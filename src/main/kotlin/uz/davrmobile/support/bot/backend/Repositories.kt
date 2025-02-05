@@ -22,12 +22,22 @@ interface UserRepository : JpaRepository<BotUser, Long> {
 }
 
 interface BotMessageRepository : BaseRepository<BotMessage> {
-    fun findAllBySessionIdAndDeletedFalse(sessionId: Long): List<BotMessage>
-    fun findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long): List<BotMessage>
-
+    fun findAllBySessionIdAndDeletedFalseOrderByCreatedDateDesc(sessionId: Long, pageable: Pageable): Page<BotMessage>
+    fun findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long, pageable: Pageable): Page<BotMessage>
     fun countAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long): Int
-
     fun findByUserIdAndMessageId(userId: Long, messageId: Int): BotMessage?
+    fun findFirstBySessionIdOrderByCreatedDateDesc(sessionId: Long): BotMessage?
+
+    @Query(
+        """
+        SELECT m AS botMessage, COUNT(m) AS count,(select b from Bot b where b.chatId = :chatId and b.status = :status and b.deleted = false)
+        FROM bot_message m
+        WHERE m.session.id = :sessionId AND m.hasRead = false
+        GROUP BY m.id
+        ORDER BY m.createdDate DESC
+    """
+    )
+    fun findLastMessageWithCountBySessionId(sessionId: Long, chatId: Long, status: BotStatusEnum): LastMessageWithCount
 
     @Query(
         """
@@ -50,7 +60,7 @@ interface SessionRepository : BaseRepository<Session> {
         pageable: Pageable
     ): Page<Session>
 
-    fun findAllByOperatorIdAndStatus(operatorId: Long, status: SessionStatusEnum): List<Session>
+    fun findAllByOperatorIdAndStatus(operatorId: Long, status: SessionStatusEnum, pageable: Pageable): Page<Session>
 
     fun findAllByStatusAndDeletedFalse(status: SessionStatusEnum): List<Session>
 
@@ -242,15 +252,17 @@ interface ContactRepository : BaseRepository<Contact>
 
 interface BotRepository : BaseRepository<Bot> {
     fun findAllByStatus(status: BotStatusEnum): List<Bot>
-    fun findAllBotsByStatusAndDeletedFalse(status: BotStatusEnum): List<Bot>
+    fun findAllBotsByStatusAndDeletedFalse(status: BotStatusEnum, pageable: Pageable): Page<Bot>
     fun findByHashId(hashId: String): Bot?
     fun findByIdAndStatusAndDeletedFalse(id: Long, status: BotStatusEnum): Bot?
-    fun findAllByDeletedFalse(): List<Bot>
+    fun findAllByDeletedFalse(pageable: Pageable): Page<Bot>
+    fun findAllBotsByStatusAndDeletedFalse(pageable: Pageable, status: BotStatusEnum): Page<Bot>
     fun existsByToken(token: String): Boolean
     fun findAllBotsByStatusAndDeletedFalseAndOperatorIdsContains(
         status: BotStatusEnum,
         operatorIds: Long
     ): MutableList<Bot>
+
     fun findAllBotsByOperatorIdsContains(operatorIds: Long): List<Bot>
 
     fun findByChatIdAndStatusAndDeletedFalse(chatId: Long, status: BotStatusEnum): Bot?

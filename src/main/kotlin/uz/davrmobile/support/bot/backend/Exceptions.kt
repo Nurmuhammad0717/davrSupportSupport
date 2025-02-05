@@ -103,3 +103,17 @@ class MaximumTextLengthException : SupportBotException() {
 class BotTokenNotValidException : SupportBotException() {
     override fun errorCode(): ErrorCode = ErrorCode.BOT_TOKEN_NOT_VALID
 }
+
+class BotIsNotRunningException : SupportBotException() {
+    override fun errorCode(): ErrorCode = ErrorCode.BOT_IS_NOT_RUNNING
+}
+
+class FieldIsRequiredException(private val fieldName: String) : SupportBotException() {
+    override fun getErrorMessageArguments(): Array<Any?> = arrayOf(fieldName)
+    override fun errorCode(): ErrorCode = ErrorCode.FIELD_IS_REQUIRED
+}
+
+class FieldCantBeEmptyException(private val fieldName: String) : SupportBotException() {
+    override fun getErrorMessageArguments(): Array<Any?> = arrayOf(fieldName)
+    override fun errorCode(): ErrorCode = ErrorCode.FIELD_CANT_BE_EMPTY
+}

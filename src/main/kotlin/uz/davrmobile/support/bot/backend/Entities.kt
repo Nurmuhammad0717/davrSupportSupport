@@ -32,6 +32,8 @@ class BotUser(
     @Enumerated(value = EnumType.STRING) var role: UserRole? = UserRole.USER,
 
     var msgIdChooseLanguage: Int? = null,
+    var miniPhotoId: String? = null,
+    var bigPhotoId: String? = null,
     val hashId: String = randomHashId()
 ) : BaseUserEntity() {
     fun isUser(): Boolean {

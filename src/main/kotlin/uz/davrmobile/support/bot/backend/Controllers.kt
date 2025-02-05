@@ -18,7 +18,7 @@ class BotController(private val botService: BotService) {
 
     @IsModerator
     @GetMapping
-    fun getAll() = botService.getAllBots()
+    fun getAll(pageable: Pageable, botStats: BotStatusEnum?) = botService.getAllBots(pageable, botStats)
 
     //    @IsAdmin
     @IsModerator
@@ -33,12 +33,7 @@ class BotController(private val botService: BotService) {
     //    @IsAdmin
     @IsModerator
     @PostMapping("change-status")
-    fun stopBot(@RequestParam id: String, @RequestParam status: String) =
-        botService.changeStatus(id, status.lowercase())
-
-    @IsModerator
-    @GetMapping("/active-bots")
-    fun getAllActiveBots() = botService.getAllActiveBots()
+    fun stopBot(@RequestParam id: String) = botService.changeStatus(id)
 
     @IsModerator
     @PostMapping("join/{id}")
@@ -55,9 +50,14 @@ class OperatorController(
     private val messageToOperatorService: MessageToOperatorService,
 ) {
     @IsModerator
-    @GetMapping("sessions")
-    fun getSessions(@RequestBody @Valid request: GetSessionRequest, pageable: Pageable) =
-        messageToOperatorService.getSessions(request, pageable)
+    @PostMapping("sessions/my")
+    fun getMySessions(pageable: Pageable) =
+        messageToOperatorService.getMySessions(pageable)
+
+    @IsModerator
+    @PostMapping("sessions/waiting")
+    fun getWaitingSessions(@RequestBody @Valid request: GetSessionRequest, pageable: Pageable) =
+        messageToOperatorService.getWaitingSessions(request, pageable)
 
     @IsModerator
     @PostMapping("take-session/{id}")
@@ -65,11 +65,13 @@ class OperatorController(
 
     @IsModerator
     @GetMapping("session-messages/{id}")
-    fun getSessionMessages(@PathVariable id: String) = messageToOperatorService.getSessionMessages(id)
+    fun getSessionMessages(@PathVariable id: String, pageable: Pageable) =
+        messageToOperatorService.getSessionMessages(id, pageable)
 
     @IsModerator
     @GetMapping("unread-messages/{id}")
-    fun getUnreadMessages(@PathVariable id: String) = messageToOperatorService.getUnreadMessages(id)
+    fun getUnreadMessages(@PathVariable id: String, pageable: Pageable) =
+        messageToOperatorService.getUnreadMessages(id, pageable)
 
     @IsModerator
     @PostMapping("send-msg")
@@ -96,7 +98,6 @@ class FileInfoController(
     @PostMapping("upload")
     fun upload(@RequestParam("file") multipartFile: MutableList<MultipartFile>) = fileInfoService.upload(multipartFile)
 
-    @IsModerator
     @GetMapping("download/{hash-id}")
     fun download(@PathVariable("hash-id") hashId: String, response: HttpServletResponse) =
         fileInfoService.download(hashId, response)
@@ -121,7 +122,6 @@ class FileInfoController(
 class StandardAnswerController(
     private val service: StandardAnswerService
 ) {
-
     @PostMapping
     fun create(@RequestBody request: StandardAnswerRequest) = service.create(request)
 
