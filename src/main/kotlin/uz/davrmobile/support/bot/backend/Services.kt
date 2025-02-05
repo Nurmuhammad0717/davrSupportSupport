@@ -21,8 +21,10 @@ import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.time.LocalDate
 import java.util.*
+import javax.imageio.ImageIO
 import javax.servlet.http.HttpServletResponse
 import javax.transaction.Transactional
+
 
 interface UserService {
     fun getAllUsers(pageable: Pageable, fullName: String?): Page<UserResponse>
@@ -514,12 +516,24 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
         val responseFiles: MutableList<FileInfoResponse> = mutableListOf()
         multipartFileList.forEach { multipartFile ->
             val name = takeFileName(multipartFile)
+            var width: Int? = null
+            var height: Int? = null
+            try {
+                ImageIO.read(multipartFile.inputStream)?.let {
+                    width = it.width
+                    height = it.height
+                }
+            } catch (_: Exception) {
+            }
+
             val fileInfo = FileInfo(
                 name = name,
                 uploadName = multipartFile.originalFilename!!,
                 extension = FilenameUtils.getExtension(multipartFile.originalFilename),
                 path = getFilePath(name).toString(),
-                size = multipartFile.size
+                size = multipartFile.size,
+                width = width,
+                height = height
             )
             val savedFileInfo = fileInfoRepository.save(fileInfo)
 

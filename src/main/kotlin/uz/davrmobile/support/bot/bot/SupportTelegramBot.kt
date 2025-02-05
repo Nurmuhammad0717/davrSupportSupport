@@ -29,6 +29,7 @@ import java.time.LocalDate
 import java.util.*
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import javax.imageio.ImageIO
 
 open class SupportTelegramBot(
     var username: String,
@@ -291,7 +292,16 @@ open class SupportTelegramBot(
         FileOutputStream(filePath).use { outputStream ->
             inputStream.copyTo(outputStream, bufferSize = 64 * 1024)
         }
-        return SavedTgFileResponse(fileName, fileExtension, filePath, fileSize)
+        var width: Int? = null
+        var height: Int? = null
+        try {
+            ImageIO.read(inputStream)?.let {
+                width = it.width
+                height = it.height
+            }
+        } catch (_: Exception) {
+        }
+        return SavedTgFileResponse(fileName, fileExtension, filePath, fileSize, width, height)
     }
 
     private fun downloadAndSaveFile(fileIdAndFileName: String): FileInfo {
@@ -299,7 +309,9 @@ open class SupportTelegramBot(
         val fileId = fileIdAndFileName.substringBefore("$%%%$")
 
         val file = saveFile(fileId)
-        return fileInfoRepository.save(FileInfo(file.name, uploadFileName, file.extension, file.path, file.size))
+        return fileInfoRepository.save(
+            file.run { FileInfo(name, uploadFileName, extension, path, size, width, height) }
+        )
     }
 
     private fun saveUserPhoneNumber(user: BotUser, phoneNumber: String) {
@@ -360,15 +372,15 @@ open class SupportTelegramBot(
                         user.state = UserStateEnum.ACTIVE_USER
                         userRepository.save(user)
                         this.execute(DeleteMessage(chatId.toString(), callbackQuery.message.messageId))
-                            user.languages = mutableSetOf(lang)
-                            user.state = UserStateEnum.ACTIVE_USER
-                            userRepository.save(user)
+                        user.languages = mutableSetOf(lang)
+                        user.state = UserStateEnum.ACTIVE_USER
+                        userRepository.save(user)
 
-                            try {
-                                this.execute(DeleteMessage(chatId.toString(), callbackQuery.message.messageId))
-                            } catch (_: Exception) {
+                        try {
+                            this.execute(DeleteMessage(chatId.toString(), callbackQuery.message.messageId))
+                        } catch (_: Exception) {
 
-                            }
+                        }
 
                         if (user.phoneNumber.isEmpty()) {
                             sendSharePhoneMsg(user)

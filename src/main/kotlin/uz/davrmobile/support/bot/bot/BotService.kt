@@ -18,6 +18,7 @@ import uz.davrmobile.support.bot.backend.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot.Companion.activeBots
 import uz.davrmobile.support.bot.bot.SupportTelegramBot.Companion.findBotById
 import uz.davrmobile.support.util.userId
+import javax.imageio.ImageIO
 
 interface BotService {
     fun createBot(req: TokenRequest)
