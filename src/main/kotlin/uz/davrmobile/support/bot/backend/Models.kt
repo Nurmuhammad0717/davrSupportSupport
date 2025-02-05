@@ -319,3 +319,8 @@ data class GetOperatorBotsResponse(
 data class UploadFileResponse(
     val files: List<FileInfoResponse>
 )
+interface LastMessageWithCount {
+    val lastMessage: BotMessage?
+    val unreadMessageCount: Int
+    val bot: Bot?
+}

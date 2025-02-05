@@ -30,6 +30,17 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
 
     @Query(
         """
+        SELECT m AS botMessage, COUNT(m) AS count,(select b from Bot b where b.chatId = :chatId and b.status = :status and b.deleted = false)
+        FROM bot_message m
+        WHERE m.session.id = :sessionId AND m.hasRead = false
+        GROUP BY m.id
+        ORDER BY m.createdDate DESC
+    """
+    )
+    fun findLastMessageWithCountBySessionId(sessionId: Long, chatId: Long, status: BotStatusEnum): LastMessageWithCount
+
+    @Query(
+        """
             SELECT NEW map(m.session as session, m as message)
         FROM bot_message m
         WHERE m.deleted = false

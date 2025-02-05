@@ -139,12 +139,14 @@ class MessageToOperatorServiceImpl(
     }
 
     private fun sessionToResp(session: Session): SessionResponse {
-        val count = botMessageRepository.countAllBySessionIdAndHasReadFalseAndDeletedFalse(session.id!!)
-        val bot = botRepository.findByChatIdAndStatusAndDeletedFalse(session.botId, BotStatusEnum.ACTIVE)
-            ?: throw BotNotFoundException()
-        val lastMsg =
-            botMessageRepository.findFirstBySessionIdOrderByCreatedDateDesc(session.id!!)
-        return SessionResponse.toResponse(session, count, bot, lastMsg?.let { BotMessageResponse.toResponse(lastMsg) })
+        val lastCount =
+            botMessageRepository.findLastMessageWithCountBySessionId(session.id!!, session.botId, BotStatusEnum.ACTIVE)
+        lastCount.bot ?: throw BotNotFoundException()
+        return SessionResponse.toResponse(
+            session,
+            lastCount.unreadMessageCount,
+            lastCount.bot!!,
+            lastCount.lastMessage?.let { BotMessageResponse.toResponse(it) })
     }
 
     override fun getSessionMessages(id: String, pageable: Pageable): SessionMessagesResponse {
