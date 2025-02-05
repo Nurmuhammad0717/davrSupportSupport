@@ -11,6 +11,7 @@ import uz.davrmobile.support.repository.BaseRepositoryImpl
 @EnableJpaRepositories(repositoryBaseClass = BaseRepositoryImpl::class)
 @Suppress("SpreadOperator")
 class SupportApplication
+
 fun main(args: Array<String>) {
     runApplication<SupportApplication>(*args)
 }

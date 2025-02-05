@@ -360,6 +360,15 @@ open class SupportTelegramBot(
                         user.state = UserStateEnum.ACTIVE_USER
                         userRepository.save(user)
                         this.execute(DeleteMessage(chatId.toString(), callbackQuery.message.messageId))
+                            user.languages = mutableSetOf(lang)
+                            user.state = UserStateEnum.ACTIVE_USER
+                            userRepository.save(user)
+
+                            try {
+                                this.execute(DeleteMessage(chatId.toString(), callbackQuery.message.messageId))
+                            } catch (_: Exception) {
+
+                            }
 
                         if (user.phoneNumber.isEmpty()) {
                             sendSharePhoneMsg(user)
@@ -392,18 +401,11 @@ open class SupportTelegramBot(
 
     @Synchronized
     fun getUser(from: org.telegram.telegrambots.meta.api.objects.User): BotUser {
-        val userOpt = userRepository.findById(from.id)
-        if (userOpt.isPresent) {
-            return userOpt.get()
+        val user = userRepository.findById(from.id).orElse(null) ?: run {
+            from.run { BotUser(id, userName ?: "", firstName + (lastName ?: ""), "", botId) }
         }
-        var username = from.userName
-        if (username == null) username = ""
-        var lastName = from.lastName
-        lastName = if (lastName == null) "" else " $lastName"
-
-        val user = userRepository.save(BotUser(from.id, username, from.firstName + lastName, "", botId))
         updateUserPhoto(user)
-        return user
+        return userRepository.save(user)
     }
 
     private fun updateUserPhoto(user: BotUser) {
@@ -411,19 +413,16 @@ open class SupportTelegramBot(
         if (photos.size > 0) {
             val photo = photos[0]
             val miniPhotoSize = photo[0]
-            val bigPhotoSize = photo[photo.lastIndex]
             user.miniPhotoId?.let {
                 fileInfoRepository.findByHashId(it)?.let { fileInfo ->
                     if (miniPhotoSize.fileSize.toLong() == fileInfo.size) return
                 }
             }
+            val bigPhotoSize = photo[photo.lastIndex]
             user.miniPhotoId = fileInfoRepository.save(this.saveFile(miniPhotoSize.fileId).toEntity()).hashId
-            user.bigPhotoId =
-                if (miniPhotoSize.fileId == bigPhotoSize.fileId)
-                    fileInfoRepository.save(this.saveFile(bigPhotoSize.fileId).toEntity()).hashId
-                else {
-                    user.miniPhotoId
-                }
+            user.bigPhotoId = if (miniPhotoSize.fileId != bigPhotoSize.fileId)
+                fileInfoRepository.save(this.saveFile(bigPhotoSize.fileId).toEntity()).hashId
+            else user.miniPhotoId
             userRepository.save(user)
         }
     }

@@ -9,6 +9,7 @@ import java.util.*
 
 data class BaseMessage(val code: Int, val message: String?)
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 data class UserResponse(
     val id: Long,
     val username: String,
@@ -47,14 +48,7 @@ data class BotResponse(
         fun toResponse(bot: Bot): BotResponse {
             return bot.run {
                 BotResponse(
-                    hashId,
-                    username,
-                    name,
-                    status,
-                    token,
-                    miniPhotoId,
-                    bigPhotoId,
-                    bot.operatorIds.contains(userId())
+                    hashId, username, name, status, token, miniPhotoId, bigPhotoId, bot.operatorIds.contains(userId())
                 )
             }
         }
@@ -62,14 +56,7 @@ data class BotResponse(
         fun toResponseWithoutToken(bot: Bot): BotResponse {
             return bot.run {
                 BotResponse(
-                    hashId,
-                    username,
-                    name,
-                    status,
-                    null,
-                    miniPhotoId,
-                    bigPhotoId,
-                    bot.operatorIds.contains(userId())
+                    hashId, username, name, status, null, miniPhotoId, bigPhotoId, bot.operatorIds.contains(userId())
                 )
             }
         }
@@ -77,17 +64,22 @@ data class BotResponse(
 }
 
 data class GetSessionsResponse(
-    val myConnectedSessions: List<SessionResponse>, val waitingSessions: Page<SessionResponse>
+    val sessions: List<SessionResponse>
 )
 
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 data class UserSessionResponse(
     val id: Long,
     val fullName: String,
+    val miniPhotoId: String?,
+    val bigPhotoId: String?,
 ) {
     companion object {
         fun toResponse(user: BotUser): UserSessionResponse {
-            return UserSessionResponse(user.id, user.fullName)
+            user.run {
+                return UserSessionResponse(id, fullName, miniPhotoId, bigPhotoId)
+            }
         }
     }
 }
@@ -104,10 +96,7 @@ data class SessionResponse(
 ) {
     companion object {
         fun toResponse(
-            session: Session,
-            messageCount: Int,
-            bot: Bot,
-            lastMessage: BotMessageResponse?
+            session: Session, messageCount: Int, bot: Bot, lastMessage: BotMessageResponse?
         ): SessionResponse {
             session.run {
                 return SessionResponse(
@@ -126,12 +115,10 @@ data class SessionResponse(
 }
 
 data class SessionMessagesResponse(
-    val sessionId: String,
-    val from: UserResponse,
-    val messages: List<BotMessageResponse>
+    val sessionId: String, val from: UserResponse, val messages: Page<BotMessageResponse>
 ) {
     companion object {
-        fun toResponse(session: Session, unreadMessages: List<BotMessage>): SessionMessagesResponse {
+        fun toResponse(session: Session, unreadMessages: Page<BotMessage>): SessionMessagesResponse {
             return session.run {
                 SessionMessagesResponse(
                     hashId, UserResponse.toResponse(user), unreadMessages.map { BotMessageResponse.toResponse(it) })
@@ -153,15 +140,19 @@ data class BotMessageResponse(
     val location: LocationResponse?,
     val contact: ContactResponse?,
     val dice: DiceResponse?,
-    var edited: Boolean = false
+    var edited: Boolean = false,
+    var from: Long
 ) {
     companion object {
         fun toResponse(botMessage: BotMessage): BotMessageResponse {
             botMessage.run {
                 return BotMessageResponse(
                     hashId,
-                    messageId, botMessageType,
-                    replyMessageId, text, caption,
+                    messageId,
+                    botMessageType,
+                    replyMessageId,
+                    text,
+                    caption,
                     createdDate!!.toInstant().toEpochMilli(),
                     files?.let {
                         if (it.isNotEmpty()) it.map { u -> u.hashId }
@@ -171,6 +162,7 @@ data class BotMessageResponse(
                     contact?.let { ContactResponse.toResponse(it) },
                     dice?.let { DiceResponse.toResponse(it) },
                     (botMessage.originalText != null || botMessage.originalCaption != null),
+                    botMessage.fromOperatorId ?: botMessage.user!!.id
                 )
 
             }
@@ -302,9 +294,7 @@ data class OperatorEditMsgRequest(
 )
 
 data class OperatorStatisticRequest(
-    val operatorId: Long?,
-    val startDate: Date?,
-    val endDate: Date?
+    val operatorId: Long?, val startDate: Date?, val endDate: Date?
 )
 
 data class SavedTgFileResponse(

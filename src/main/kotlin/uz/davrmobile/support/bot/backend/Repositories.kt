@@ -22,11 +22,12 @@ interface UserRepository : JpaRepository<BotUser, Long> {
 }
 
 interface BotMessageRepository : BaseRepository<BotMessage> {
-    fun findAllBySessionIdAndDeletedFalse(sessionId: Long): List<BotMessage>
-    fun findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long): List<BotMessage>
+    fun findAllBySessionIdAndDeletedFalse(sessionId: Long, pageable: Pageable): Page<BotMessage>
+    fun findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long, pageable: Pageable): Page<BotMessage>
     fun countAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long): Int
     fun findByUserIdAndMessageId(userId: Long, messageId: Int): BotMessage?
     fun findFirstBySessionIdOrderByCreatedDateDesc(sessionId: Long): BotMessage?
+
     @Query(
         """
             SELECT NEW map(m.session as session, m as message)
@@ -41,6 +42,24 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
 }
 
 interface SessionRepository : BaseRepository<Session> {
+
+    @Query(
+        value = """
+SELECT * FROM session s WHERE s.bot_id IN (SELECT b.chat_id FROM bot b JOIN bot_operator_ids boi ON b.id = boi.bot_id WHERE b.status = ?1 AND b.deleted = FALSE AND boi.operator_ids = ?2) AND s.deleted = FALSE AND s.status = ?3 AND s.language IN (?4)
+                """,
+        countQuery = """
+SELECT count(*) FROM session s WHERE s.bot_id IN (SELECT b.chat_id FROM bot b JOIN bot_operator_ids boi ON b.id = boi.bot_id WHERE b.status = ?1 AND b.deleted = FALSE AND boi.operator_ids = ?2) AND s.deleted = FALSE AND s.status = ?3 AND s.language IN (?4)
+    """,
+        nativeQuery = true
+    )
+    fun getWaitingSessions(
+        botStatus: String,   // ?1
+        operatorId: Long,           // ?2
+        status: String,  // ?3
+        languages: List<Int>, // ?4
+        pageable: Pageable
+    ): Page<Session>
+
     fun findAllByBotIdInAndDeletedFalseAndStatusAndLanguageIn(
         botIds: List<Long>,
         status: SessionStatusEnum,
@@ -48,7 +67,7 @@ interface SessionRepository : BaseRepository<Session> {
         pageable: Pageable
     ): Page<Session>
 
-    fun findAllByOperatorIdAndStatus(operatorId: Long, status: SessionStatusEnum): List<Session>
+    fun findAllByOperatorIdAndStatus(operatorId: Long, status: SessionStatusEnum, pageable: Pageable): Page<Session>
 
     fun findAllByStatusAndDeletedFalse(status: SessionStatusEnum): List<Session>
 
@@ -240,7 +259,7 @@ interface ContactRepository : BaseRepository<Contact>
 
 interface BotRepository : BaseRepository<Bot> {
     fun findAllByStatus(status: BotStatusEnum): List<Bot>
-    fun findAllBotsByStatusAndDeletedFalse(status: BotStatusEnum,pageable: Pageable): Page<Bot>
+    fun findAllBotsByStatusAndDeletedFalse(status: BotStatusEnum, pageable: Pageable): Page<Bot>
     fun findByHashId(hashId: String): Bot?
     fun findByIdAndStatusAndDeletedFalse(id: Long, status: BotStatusEnum): Bot?
     fun findAllByDeletedFalse(pageable: Pageable): Page<Bot>
@@ -250,6 +269,7 @@ interface BotRepository : BaseRepository<Bot> {
         status: BotStatusEnum,
         operatorIds: Long
     ): MutableList<Bot>
+
     fun findAllBotsByOperatorIdsContains(operatorIds: Long): List<Bot>
 
     fun findByChatIdAndStatusAndDeletedFalse(chatId: Long, status: BotStatusEnum): Bot?

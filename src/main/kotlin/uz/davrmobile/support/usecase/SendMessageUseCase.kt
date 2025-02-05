@@ -1,6 +1,7 @@
 package uz.davrmobile.support.usecase
 
 import org.springframework.messaging.simp.SimpMessagingTemplate
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import uz.davrmobile.support.dto.MessageDto
 import uz.davrmobile.support.dto.MessageModel
@@ -13,6 +14,7 @@ import uz.davrmobile.support.exception.ChatNotFoundException
 import uz.davrmobile.support.repository.ChatRepository
 import uz.davrmobile.support.repository.MessageRepository
 import uz.davrmobile.support.util.getRoles
+import uz.davrmobile.support.util.roles
 import uz.davrmobile.support.util.userId
 
 @Component
@@ -27,7 +29,7 @@ class SendMessageUseCase(
     }
 
     fun execute(chatUid: String, dto: MessageDto): MessageModel {
-        val roles = getRoles()
+        val roles = roles()
         val message = if (roles.contains(UserRole.USER) && roles.size == 1) {
             sendMessageAsUser(chatUid, dto)
         } else {

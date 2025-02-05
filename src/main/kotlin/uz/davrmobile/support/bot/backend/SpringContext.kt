@@ -1,4 +1,4 @@
-package uz.davrmobile.support.bot.component
+package uz.davrmobile.support.bot.backend
 
 import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationContextAware

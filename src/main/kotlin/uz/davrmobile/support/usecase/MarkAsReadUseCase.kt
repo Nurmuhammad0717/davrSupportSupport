@@ -8,6 +8,7 @@ import uz.davrmobile.support.exception.ChatNotFoundException
 import uz.davrmobile.support.repository.ChatRepository
 import uz.davrmobile.support.repository.MessageRepository
 import uz.davrmobile.support.util.getRoles
+import uz.davrmobile.support.util.roles
 import uz.davrmobile.support.util.userId
 
 @Component
@@ -27,7 +28,7 @@ class MarkAsReadUseCase(
     }
 
     private fun getSenderType(): SenderType {
-        val roles = getRoles()
+        val roles = roles()
         return if (roles.contains(UserRole.USER) && roles.size == 1) {
             SenderType.SUPPORT
         } else {

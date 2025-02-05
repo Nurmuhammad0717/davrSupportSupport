@@ -35,11 +35,7 @@ class BotUser(
     var miniPhotoId: String? = null,
     var bigPhotoId: String? = null,
     val hashId: String = randomHashId()
-) : BaseUserEntity() {
-    fun isUser(): Boolean {
-        return role == UserRole.USER
-    }
-}
+) : BaseUserEntity()
 
 @Entity
 class Bot(

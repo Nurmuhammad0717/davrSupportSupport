@@ -17,7 +17,7 @@ import java.io.StringWriter
 import java.util.*
 import mu.KotlinLogging
 import uz.davrmobile.support.bot.backend.BaseMessage
-import uz.davrmobile.support.bot.backend.DBusinessException
+import uz.davrmobile.support.bot.backend.SupportBotException
 
 @ControllerAdvice
 class ExceptionHandler(
@@ -27,10 +27,11 @@ class ExceptionHandler(
 
     private final val logger = KotlinLogging.logger { }
 
-    @ExceptionHandler(DBusinessException::class)
-    fun handleAccountException(exception: DBusinessException): ResponseEntity<BaseMessage> {
+    @ExceptionHandler(SupportBotException::class)
+    fun handleAccountException(exception: SupportBotException): ResponseEntity<BaseMessage> {
         return ResponseEntity.badRequest().body(exception.getErrorMessage(errorMessageSource))
     }
+
     @ExceptionHandler(DavrMobileException::class)
     fun handleDavrMobileException(exception: DavrMobileException): ResponseEntity<BaseErrorMessage> =
         ResponseEntity.badRequest()

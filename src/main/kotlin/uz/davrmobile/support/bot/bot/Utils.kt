@@ -1,14 +1,13 @@
 package uz.davrmobile.support.bot.bot
 
-import org.springframework.security.core.context.SecurityContextHolder
 import uz.davrmobile.support.enm.UserRole
-import uz.davrmobile.support.util.getRoles
+import uz.davrmobile.support.util.roles
 import java.util.*
 
 class Utils {
     companion object {
         fun isAdmin(): Boolean {
-            val roles = SecurityContextHolder.getContext().getRoles()
+            val roles = roles()
             return (roles.contains(UserRole.ADMIN) || roles.contains(UserRole.DEV) || roles.contains(UserRole.MODERATOR))
         }
 

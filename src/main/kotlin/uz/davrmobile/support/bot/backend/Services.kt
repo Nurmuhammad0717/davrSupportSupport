@@ -56,9 +56,10 @@ interface StatisticService {
 }
 
 interface MessageToOperatorService {
-    fun getSessions(request: GetSessionRequest, pageable: Pageable): GetSessionsResponse
-    fun getSessionMessages(id: String): SessionMessagesResponse
-    fun getUnreadMessages(id: String): SessionMessagesResponse
+    fun getWaitingSessions(request: GetSessionRequest, pageable: Pageable): Page<SessionResponse>
+    fun getMySessions(pageable: Pageable): Page<SessionResponse>
+    fun getSessionMessages(id: String, pageable: Pageable): SessionMessagesResponse
+    fun getUnreadMessages(id: String, pageable: Pageable): SessionMessagesResponse
     fun sendMessage(message: OperatorSentMsgRequest): BotMessageResponse
     fun closeSession(sessionHash: String)
     fun editMessage(message: OperatorEditMsgRequest)
@@ -82,17 +83,14 @@ class UserServiceImpl(
     }
 
     override fun deleteUser(userId: Long) {
-        val optional = userRepository.findById(userId)
-        if (!optional.isPresent) throw UserNotFoundException()
-        val user = optional.get()
+        val user = userRepository.findById(userId).orElseThrow { UserNotFoundException() }
         user.deleted = true
         userRepository.save(user)
     }
 
     override fun getUserById(id: Long): UserResponse {
-        userRepository.findByIdAndDeletedFalse(id)?.let {
-            return UserResponse.toResponse(it)
-        } ?: throw UserNotFoundException()
+        val user = userRepository.findByIdAndDeletedFalse(id) ?: throw UserNotFoundException()
+        return UserResponse.toResponse(user)
     }
 
     override fun addOperatorLanguages(languages: List<LanguageEnum>) {
@@ -117,72 +115,58 @@ class MessageToOperatorServiceImpl(
     private val locationRepository: LocationRepository
 
 ) : MessageToOperatorService {
-
-    override fun getSessions(request: GetSessionRequest, pageable: Pageable): GetSessionsResponse {
-        val userId = userId()
-
-        if (request.languages.isEmpty()) request.languages.addAll(
-            mutableListOf(
-                LanguageEnum.EN,
-                LanguageEnum.RU,
-                LanguageEnum.UZ
-            )
-        )
-
-        val botIds =
-            botRepository.findAllBotsByStatusAndDeletedFalseAndOperatorIdsContains(BotStatusEnum.ACTIVE, userId)
-                .map { it.chatId }.toMutableList()
-
-        val waitingSessions = sessionRepository.findAllByBotIdInAndDeletedFalseAndStatusAndLanguageIn(
-            botIds, SessionStatusEnum.WAITING, request.languages, pageable
-        )
-        val thisUsersBusySessions = sessionRepository.findAllByOperatorIdAndStatus(userId, SessionStatusEnum.BUSY)
-
-        val busySessionResponse = thisUsersBusySessions.map {
-            val count = botMessageRepository.countAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!)
-            val bot = botRepository.findByChatIdAndStatusAndDeletedFalse(it.botId, BotStatusEnum.ACTIVE)
-                ?: throw BotNotFoundException()
-            val lastMsg =
-                botMessageRepository.findFirstBySessionIdOrderByCreatedDateDesc(it.id!!)
-            SessionResponse.toResponse(it, count, bot, lastMsg?.let {BotMessageResponse.toResponse(lastMsg)})
-        }
-
-        val waitingSessionResponse = waitingSessions.map {
-            val count = botMessageRepository.countAllBySessionIdAndHasReadFalseAndDeletedFalse(it.id!!)
-            val bot = botRepository.findByChatIdAndStatusAndDeletedFalse(it.botId, BotStatusEnum.ACTIVE)
-                ?: throw BotNotFoundException()
-            val lastMsg =
-                botMessageRepository.findFirstBySessionIdOrderByCreatedDateDesc(it.id!!)
-            SessionResponse.toResponse(it, count, bot, lastMsg?.let {BotMessageResponse.toResponse(lastMsg)})
-        }
-
-        return GetSessionsResponse(busySessionResponse, waitingSessionResponse)
+    override fun getMySessions(pageable: Pageable): Page<SessionResponse> {
+        return sessionRepository.findAllByOperatorIdAndStatus(
+            userId(),
+            SessionStatusEnum.BUSY,
+            pageable
+        ).map { sessionToResp(it) }
     }
 
-    override fun getSessionMessages(id: String): SessionMessagesResponse {
-        sessionRepository.findByHashId(id)?.let { session ->
-            val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(session.id!!)
-            return SessionMessagesResponse.toResponse(session, messages)
-        }
-        throw SessionNotFoundException()
+    override fun getWaitingSessions(request: GetSessionRequest, pageable: Pageable): Page<SessionResponse> {
+        if (request.languages.isEmpty())
+            request.languages.addAll(LanguageEnum.values())
+
+        return sessionRepository.getWaitingSessions(
+            BotStatusEnum.ACTIVE.toString(),
+            userId(),
+            SessionStatusEnum.WAITING.toString(),
+            request.languages.map { it.ordinal },
+            pageable
+        ).map { sessionToResp(it) }
+    }
+
+    private fun sessionToResp(session: Session): SessionResponse {
+        val count = botMessageRepository.countAllBySessionIdAndHasReadFalseAndDeletedFalse(session.id!!)
+        val bot = botRepository.findByChatIdAndStatusAndDeletedFalse(session.botId, BotStatusEnum.ACTIVE)
+            ?: throw BotNotFoundException()
+        val lastMsg =
+            botMessageRepository.findFirstBySessionIdOrderByCreatedDateDesc(session.id!!)
+        return SessionResponse.toResponse(session, count, bot, lastMsg?.let { BotMessageResponse.toResponse(lastMsg) })
+    }
+
+    override fun getSessionMessages(id: String, pageable: Pageable): SessionMessagesResponse {
+        val session = sessionRepository.findByHashId(id) ?: throw SessionNotFoundException()
+        val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(session.id!!, pageable)
+        return SessionMessagesResponse.toResponse(session, messages)
     }
 
     @Transactional
-    override fun getUnreadMessages(id: String): SessionMessagesResponse {
-        sessionRepository.findByHashId(id)?.let { session ->
-            val unreadMessages = botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(session.id!!)
-            for (unreadMessage in unreadMessages) unreadMessage.hasRead = true
-            botMessageRepository.saveAll(unreadMessages)
-            return SessionMessagesResponse.toResponse(session, unreadMessages)
-        }
-        throw SessionNotFoundException()
+    override fun getUnreadMessages(id: String, pageable: Pageable): SessionMessagesResponse {
+        val session = sessionRepository.findByHashId(id) ?: throw SessionNotFoundException()
+        val unreadMessages =
+            botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(session.id!!, pageable)
+        for (unreadMessage in unreadMessages) unreadMessage.hasRead = true
+        botMessageRepository.saveAll(unreadMessages)
+        return SessionMessagesResponse.toResponse(session, unreadMessages)
+
     }
 
     @Transactional
     override fun sendMessage(message: OperatorSentMsgRequest): BotMessageResponse {
         val operatorId = userId()
 
-        if (message.sessionId == null) throw BadCredentialsException()
+        if (message.sessionId == null) throw FieldIsRequiredException(OperatorSentMsgRequest::sessionId.name)
         val session = sessionRepository.findByHashId(message.sessionId) ?: throw SessionNotFoundException()
 
         if (session.operatorId == null) throw SessionNotConnectedToOperatorException()
@@ -195,22 +179,18 @@ class MessageToOperatorServiceImpl(
 
         return when (message.type!!) {
             BotMessageType.TEXT -> {
-                message.text?.let { text ->
-                    if (text.length > 4096) throw MaximumTextLengthException()
-                    if (text.isEmpty()) throw TextCantBeEmptyException()
-                    val send = SendMessage(userId, text)
-                    send.replyToMessageId = message.replyMessageId
-                    val ex = absSender.execute(send)
-                    BotMessageResponse.toResponse(
-                        newSessionMsg(
-                            message, session, operatorId, ex.messageId
-                        )
-                    )
-                } ?: throw BadCredentialsException()
+                val text = message.text ?: throw FieldIsRequiredException(OperatorSentMsgRequest::text.name)
+                if (text.length > 4096) throw MaximumTextLengthException()
+                if (text.isEmpty()) throw FieldCantBeEmptyException(OperatorSentMsgRequest::text.name)
+                val send = SendMessage(userId, text)
+                send.replyToMessageId = message.replyMessageId
+                val ex = absSender.execute(send)
+                BotMessageResponse
+                    .toResponse(newSessionMsg(message, session, operatorId, ex.messageId))
             }
 
             BotMessageType.CONTACT -> {
-                val it = message.contact ?: throw BadCredentialsException()
+                val it = message.contact ?: throw FieldIsRequiredException(OperatorSentMsgRequest::contact.name)
                 val send = SendContact(userId, it.phoneNumber, it.name)
                 send.replyToMessageId = message.replyMessageId
                 val ex = absSender.execute(send)
@@ -222,21 +202,21 @@ class MessageToOperatorServiceImpl(
             }
 
             BotMessageType.LOCATION -> {
-                message.location?.let {
-                    val send = SendLocation(userId, it.latitude, it.longitude)
-                    send.replyToMessageId = message.replyMessageId
-                    val ex = absSender.execute(send)
-                    BotMessageResponse.toResponse(
-                        newSessionMsg(
-                            message, session, operatorId, ex.messageId, location = send
-                        )
+                val it = message.location ?: throw FieldIsRequiredException(OperatorSentMsgRequest::location.name)
+                val send = SendLocation(userId, it.latitude, it.longitude)
+                send.replyToMessageId = message.replyMessageId
+                val ex = absSender.execute(send)
+                BotMessageResponse.toResponse(
+                    newSessionMsg(
+                        message, session, operatorId, ex.messageId, location = send
                     )
-                } ?: throw BadCredentialsException()
+                )
             }
 
             BotMessageType.ANIMATION -> {
-                val fileHashIds = message.fileIds ?: throw BadCredentialsException()
-                if (fileHashIds.isEmpty()) throw BadCredentialsException()
+                val fileHashIds =
+                    message.fileIds ?: throw FieldIsRequiredException(OperatorSentMsgRequest::fileIds.name)
+                if (fileHashIds.isEmpty()) throw FieldCantBeEmptyException(OperatorSentMsgRequest::fileIds.name)
 
                 var lastMsg: BotMessageResponse? = null
                 for (fileHashId in fileHashIds) {
@@ -251,18 +231,18 @@ class MessageToOperatorServiceImpl(
                         else send.caption = message.caption
                     send.replyToMessageId = message.replyMessageId
                     val ex = absSender.execute(send)
-                    lastMsg = BotMessageResponse.toResponse(
-                        newSessionMsg(
-                            message, session, operatorId, ex.messageId, fileInfos = listOf(fileInfo)
+                    lastMsg = BotMessageResponse
+                        .toResponse(
+                            newSessionMsg(message, session, operatorId, ex.messageId, fileInfos = listOf(fileInfo))
                         )
-                    )
                 }
                 lastMsg!!
             }
 
             BotMessageType.VIDEO, BotMessageType.PHOTO, BotMessageType.VOICE, BotMessageType.AUDIO, BotMessageType.DOCUMENT -> {
-                val fileHashIds = message.fileIds ?: throw BadCredentialsException()
-                if (fileHashIds.isEmpty()) throw BadCredentialsException()
+                val fileHashIds =
+                    message.fileIds ?: throw FieldIsRequiredException(OperatorSentMsgRequest::fileIds.name)
+                if (fileHashIds.isEmpty()) throw FieldCantBeEmptyException(OperatorSentMsgRequest::fileIds.name)
 
                 val inputMediaList: MutableList<InputMedia> = mutableListOf()
                 for (fileHashId in fileHashIds) {

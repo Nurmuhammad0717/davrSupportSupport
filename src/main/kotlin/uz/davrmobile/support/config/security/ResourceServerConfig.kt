@@ -24,22 +24,9 @@ class ResourceServerConfig : ResourceServerConfigurerAdapter() {
             ?.and()
             ?.authorizeRequests()
             ?.antMatchers(
-                "/internal/**",
-                "/faq/**",
-                "/configuration/ui",
-                "/configuration/**",
-                "/configuration/security",
-                "/v3/api-docs/**",
-                "/swagger-ui/**",
-                "/swagger-ui.html",
-                "/actuator/**",
-                "/webjars/**",
-
-
-                "/bot/**",
-                "/operator/**",
+                "/**",
             )?.permitAll()
-            ?.antMatchers("/**")?.authenticated()
+//            ?.antMatchers("/**")?.authenticated()
             ?.and()
             ?.csrf()?.disable()
     }
