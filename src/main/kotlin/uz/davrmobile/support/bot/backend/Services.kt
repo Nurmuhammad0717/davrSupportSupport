@@ -135,18 +135,39 @@ class MessageToOperatorServiceImpl(
             SessionStatusEnum.WAITING.toString(),
             request.languages.map { it.ordinal },
             pageable
-        ).map { sessionToResp(it) }
+        ).map { sessionToRespHasReadFalse(it) }
     }
 
-    private fun sessionToResp(session: Session): SessionResponse {
-        val lastCount =
-            botMessageRepository.findLastMessageWithCountBySessionId(session.id!!, session.botId, BotStatusEnum.ACTIVE)
-        lastCount.bot ?: throw BotNotFoundException()
+    private fun sessionToRespHasReadFalse(session: Session): SessionResponse {
+        val messages =
+            botMessageRepository.findLastMessageWithCountBySessionIdAndHasReadFalse(
+                session.id!!,
+                session.botId,
+                BotStatusEnum.ACTIVE
+            )
+        val lastCount = (if (messages.isNotEmpty()) messages[0] else null)
+        lastCount?.bot ?: throw BotNotFoundException()
         return SessionResponse.toResponse(
             session,
             lastCount.unreadMessageCount,
             lastCount.bot!!,
-            lastCount.lastMessage?.let { BotMessageResponse.toResponse(it) })
+            lastCount.lastMessage?.let { lm -> BotMessageResponse.toResponse(lm) })
+    }
+
+    private fun sessionToResp(session: Session): SessionResponse {
+        val messages =
+            botMessageRepository.findLastMessageWithCountBySessionId(
+                session.id!!,
+                session.botId,
+                BotStatusEnum.ACTIVE
+            )
+        val lastCount = (if (messages.isNotEmpty()) messages[0] else null)
+        lastCount?.bot ?: throw BotNotFoundException()
+        return SessionResponse.toResponse(
+            session,
+            lastCount.unreadMessageCount,
+            lastCount.bot!!,
+            lastCount.lastMessage?.let { lm -> BotMessageResponse.toResponse(lm) })
     }
 
     override fun getSessionMessages(id: String, pageable: Pageable): SessionMessagesResponse {

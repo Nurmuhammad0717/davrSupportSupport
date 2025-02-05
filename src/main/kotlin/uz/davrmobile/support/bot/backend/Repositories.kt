@@ -30,14 +30,33 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
 
     @Query(
         """
-        SELECT m AS botMessage, COUNT(m) AS count,(select b from Bot b where b.chatId = :chatId and b.status = :status and b.deleted = false)
+        SELECT m AS lastMessage, COUNT(m) AS unreadMessageCount, (select b from Bot b where b.chatId = :chatId and b.status = :status and b.deleted = false) as bot
+        FROM bot_message m
+        WHERE m.session.id = :sessionId
+        GROUP BY m.id
+        ORDER BY m.createdDate DESC
+    """
+    )
+    fun findLastMessageWithCountBySessionId(
+        sessionId: Long,
+        chatId: Long,
+        status: BotStatusEnum
+    ): List<LastMessageWithCount>
+
+    @Query(
+        """
+        SELECT m AS lastMessage, COUNT(m) AS unreadMessageCount, (select b from Bot b where b.chatId = :chatId and b.status = :status and b.deleted = false) as bot
         FROM bot_message m
         WHERE m.session.id = :sessionId AND m.hasRead = false
         GROUP BY m.id
         ORDER BY m.createdDate DESC
     """
     )
-    fun findLastMessageWithCountBySessionId(sessionId: Long, chatId: Long, status: BotStatusEnum): LastMessageWithCount
+    fun findLastMessageWithCountBySessionIdAndHasReadFalse(
+        sessionId: Long,
+        chatId: Long,
+        status: BotStatusEnum
+    ): List<LastMessageWithCount>
 
     @Query(
         """
@@ -56,10 +75,30 @@ interface SessionRepository : BaseRepository<Session> {
 
     @Query(
         value = """
-SELECT * FROM session s WHERE s.bot_id IN (SELECT b.chat_id FROM bot b JOIN bot_operator_ids boi ON b.id = boi.bot_id WHERE b.status = ?1 AND b.deleted = FALSE AND boi.operator_ids = ?2) AND s.deleted = FALSE AND s.status = ?3 AND s.language IN (?4)
+            SELECT *
+            FROM session s
+            WHERE s.bot_id IN (SELECT b.chat_id
+                               FROM bot b
+                                        JOIN bot_operator_ids boi ON b.id = boi.bot_id
+                               WHERE b.status = ?1
+                                 AND b.deleted = FALSE
+                                 AND boi.operator_ids = ?2)
+              AND s.deleted = FALSE
+              AND s.status = ?3
+              AND s.language IN (?4)
                 """,
         countQuery = """
-SELECT count(*) FROM session s WHERE s.bot_id IN (SELECT b.chat_id FROM bot b JOIN bot_operator_ids boi ON b.id = boi.bot_id WHERE b.status = ?1 AND b.deleted = FALSE AND boi.operator_ids = ?2) AND s.deleted = FALSE AND s.status = ?3 AND s.language IN (?4)
+            SELECT count(*)
+            FROM session s
+            WHERE s.bot_id IN (SELECT b.chat_id
+                               FROM bot b
+                                        JOIN bot_operator_ids boi ON b.id = boi.bot_id
+                               WHERE b.status = ?1
+                                 AND b.deleted = FALSE
+                                 AND boi.operator_ids = ?2)
+              AND s.deleted = FALSE
+              AND s.status = ?3
+              AND s.language IN (?4)
     """,
         nativeQuery = true
     )

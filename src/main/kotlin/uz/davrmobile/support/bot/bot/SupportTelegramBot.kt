@@ -22,6 +22,7 @@ import uz.davrmobile.support.bot.backend.*
 import uz.davrmobile.support.bot.bot.Utils.Companion.clearPhone
 import uz.davrmobile.support.bot.bot.Utils.Companion.htmlBold
 import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
+import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -289,13 +290,14 @@ open class SupportTelegramBot(
         Paths.get(filePath).parent?.let { directoryPath ->
             if (!Files.exists(directoryPath)) Files.createDirectories(directoryPath)
         }
+
         FileOutputStream(filePath).use { outputStream ->
             inputStream.copyTo(outputStream, bufferSize = 64 * 1024)
         }
         var width: Int? = null
         var height: Int? = null
         try {
-            ImageIO.read(inputStream)?.let {
+            ImageIO.read(File(filePath))?.let {
                 width = it.width
                 height = it.height
             }
