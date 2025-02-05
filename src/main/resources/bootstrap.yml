@@ -1,17 +1,19 @@
-spring:
-  application:
-    name: support-service
+server:
+  port: 80
 
----
 spring:
-  profiles: prod
-  cloud:
-    config:
-      uri: http://config-service:8888
-
----
-spring:
-  profiles: local
-  cloud:
-    config:
-      uri: http://localhost:8888
+  datasource:
+    url: jdbc:postgresql://localhost:5432/new_mobile_support
+    username: postgres
+    password: Sobirov0717
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate.format_sql: true
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 200MB
