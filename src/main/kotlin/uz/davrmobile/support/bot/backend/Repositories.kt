@@ -29,14 +29,33 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
 
     @Query(
         """
-        SELECT m AS botMessage, COUNT(m) AS count,(select b from Bot b where b.chatId = :chatId and b.status = :status and b.deleted = false)
+        SELECT m AS lastMessage, COUNT(m) AS unreadMessageCount, (select b from Bot b where b.chatId = :chatId and b.status = :status and b.deleted = false) as bot
         FROM bot_message m
         WHERE m.session.id = :sessionId AND m.hasRead = false
         GROUP BY m.id
         ORDER BY m.createdDate DESC
     """
     )
-    fun findLastMessageWithCountBySessionId(sessionId: Long, chatId: Long, status: BotStatusEnum): LastMessageWithCount
+    fun findLastMessageWithCountBySessionIdAndHasReadFalse(
+        sessionId: Long,
+        chatId: Long,
+        status: BotStatusEnum
+    ): List<LastMessageWithCount>
+
+    @Query(
+        """
+        SELECT m AS lastMessage, COUNT(m) AS unreadMessageCount, (select b from Bot b where b.chatId = :chatId and b.status = :status and b.deleted = false) as bot
+        FROM bot_message m
+        WHERE m.session.id = :sessionId
+        GROUP BY m.id
+        ORDER BY m.createdDate DESC
+    """
+    )
+    fun findLastMessageWithCountBySessionId(
+        sessionId: Long,
+        chatId: Long,
+        status: BotStatusEnum
+    ): List<LastMessageWithCount>
 
     @Query(
         """
@@ -55,34 +74,31 @@ interface SessionRepository : BaseRepository<Session> {
 
     @Query(
         value = """
-           SELECT 
-    s.id AS id,
-    0 AS newMessagesCount,
-    s.created_date AS "date",
-    CASE
-        WHEN s.language = 0 THEN 'UZ'
-        WHEN s.language = 1 THEN 'RU'
-        WHEN s.language = 2 THEN 'EN'
-    END AS "language",
-    b.hash_id AS botId,
-    b.username AS botUsername,
-    b.name AS botName,
-    b.status AS botStatus,
-    b.mini_photo_id AS botMiniPhotoId,
-    b.big_photo_id AS botBigPhotoId,
-    u.id AS userId,
-    u.full_name AS userFullName,
-    u.mini_photo_id AS userMiniPhotoId,
-    u.big_photo_id AS userBigPhotoId
-FROM session s
-LEFT JOIN bot b ON b.chat_id = s.bot_id
-LEFT JOIN bot_user u ON u.id = s.user_id
-WHERE s.operator_id = :operatorId
-  AND s.status = 'CLOSED'
-        """
-        , nativeQuery = true
+    SELECT 
+        s.id AS id,
+        s.rate AS rate,
+        CASE
+            WHEN s.language = 0 THEN 'UZ'
+            WHEN s.language = 1 THEN 'RU'
+            WHEN s.language = 2 THEN 'EN'
+        END AS language,
+        s.created_date AS date,
+        s.status AS status,
+        b.hash_id AS botId,
+        b.username AS botUsername,
+        b.name AS botName,
+        u.id AS userId,
+        u.full_name AS userFullName
+    FROM session s
+    LEFT JOIN bot b ON b.chat_id = s.bot_id
+    LEFT JOIN bot_user u ON u.id = s.user_id
+    WHERE s.operator_id = :operatorId
+      AND s.status = 'CLOSED'
+    """,
+        nativeQuery = true
     )
-    fun findClosedSessions(pageable: Pageable,operatorId: Long): Page<SessionResponse>
+    fun findClosedSessions(pageable: Pageable, @Param("operatorId") operatorId: Long): Page<ClosedSessionProjection>
+
 
     @Query(
         value = """

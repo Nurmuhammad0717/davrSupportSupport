@@ -319,8 +319,53 @@ data class GetOperatorBotsResponse(
 data class UploadFileResponse(
     val files: List<FileInfoResponse>
 )
+
 interface LastMessageWithCount {
     val lastMessage: BotMessage?
     val unreadMessageCount: Int
     val bot: Bot?
+}
+
+data class
+ClosedSessionResponse(
+    val id: String,
+    val rate: Int?,
+    val language: String,
+    val date: Long,
+    val status: String,
+    val userId: Long,
+    val userFullName: String?,
+    val botId: String,
+    val botUsername: String,
+    val botName: String,
+) {
+    companion object {
+        fun toResponse(p: ClosedSessionProjection): ClosedSessionResponse {
+            return ClosedSessionResponse(
+                p.getId(),
+                p.getRate(),
+                p.getLanguage(),
+                p.getDate().toInstant().toEpochMilli(),
+                p.getStatus(),
+                p.getUserId(),
+                p.getUserFullName(),
+                p.getBotId(),
+                p.getBotUsername(),
+                p.getBotName(),
+            )
+        }
+    }
+}
+
+interface ClosedSessionProjection {
+    fun getId(): String
+    fun getRate(): Int?
+    fun getLanguage(): String
+    fun getDate(): Date
+    fun getStatus(): String
+    fun getUserId(): Long
+    fun getUserFullName(): String?
+    fun getBotId(): String
+    fun getBotUsername(): String
+    fun getBotName(): String
 }

@@ -68,7 +68,7 @@ interface MessageToOperatorService {
     fun editMessage(text: String?, caption: String?, msg: BotMessage)
     fun takeSession(id: String)
     fun getOperatorBots(): GetOperatorBotsResponse
-    fun getClosedSessions(pageable: Pageable): Page<SessionResponse>
+    fun getClosedSessions(pageable: Pageable): Page<ClosedSessionResponse>
 }
 
 @Service
@@ -530,8 +530,10 @@ class MessageToOperatorServiceImpl(
         })
     }
 
-    override fun getClosedSessions(pageable: Pageable): Page<SessionResponse> {
-        return sessionRepository.findClosedSessions(pageable, userId())
+    override fun getClosedSessions(pageable: Pageable): Page<ClosedSessionResponse> {
+        return sessionRepository.findClosedSessions(pageable, userId()).map {
+            ClosedSessionResponse.toResponse(it)
+        }
     }
 
 }
