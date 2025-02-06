@@ -26,8 +26,7 @@ class BotUser(
     @Column(nullable = false) var botId: Long,
     @ElementCollection(targetClass = LanguageEnum::class, fetch = FetchType.EAGER)
     @CollectionTable(name = "user_language", joinColumns = [JoinColumn(name = "user_id")])
-    @Enumerated(EnumType.STRING)
-    var languages: MutableSet<LanguageEnum> = mutableSetOf(),
+    @Enumerated(EnumType.STRING) var languages: MutableSet<LanguageEnum> = mutableSetOf(),
     @Enumerated(value = EnumType.STRING) var state: UserStateEnum = UserStateEnum.NEW_USER,
     @Enumerated(value = EnumType.STRING) var role: UserRole? = UserRole.USER,
 
