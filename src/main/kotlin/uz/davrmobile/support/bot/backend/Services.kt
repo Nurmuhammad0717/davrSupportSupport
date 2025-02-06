@@ -21,8 +21,10 @@ import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.time.LocalDate
 import java.util.*
+import javax.imageio.ImageIO
 import javax.servlet.http.HttpServletResponse
 import javax.transaction.Transactional
+
 
 interface UserService {
     fun getAllUsers(pageable: Pageable, fullName: String?): Page<UserResponse>
@@ -134,18 +136,39 @@ class MessageToOperatorServiceImpl(
             SessionStatusEnum.WAITING.toString(),
             request.languages.map { it.ordinal },
             pageable
-        ).map { sessionToResp(it) }
+        ).map { sessionToRespHasReadFalse(it) }
     }
 
-    private fun sessionToResp(session: Session): SessionResponse {
-        val lastCount =
-            botMessageRepository.findLastMessageWithCountBySessionId(session.id!!, session.botId, BotStatusEnum.ACTIVE)
-        lastCount.bot ?: throw BotNotFoundException()
+    private fun sessionToRespHasReadFalse(session: Session): SessionResponse {
+        val messages =
+            botMessageRepository.findLastMessageWithCountBySessionIdAndHasReadFalse(
+                session.id!!,
+                session.botId,
+                BotStatusEnum.ACTIVE
+            )
+        val lastCount = (if (messages.isNotEmpty()) messages[0] else null)
+        lastCount?.bot ?: throw BotNotFoundException()
         return SessionResponse.toResponse(
             session,
             lastCount.unreadMessageCount,
             lastCount.bot!!,
-            lastCount.lastMessage?.let { BotMessageResponse.toResponse(it) })
+            lastCount.lastMessage?.let { lm -> BotMessageResponse.toResponse(lm) })
+    }
+
+    private fun sessionToResp(session: Session): SessionResponse {
+        val messages =
+            botMessageRepository.findLastMessageWithCountBySessionId(
+                session.id!!,
+                session.botId,
+                BotStatusEnum.ACTIVE
+            )
+        val lastCount = (if (messages.isNotEmpty()) messages[0] else null)
+        lastCount?.bot ?: throw BotNotFoundException()
+        return SessionResponse.toResponse(
+            session,
+            lastCount.unreadMessageCount,
+            lastCount.bot!!,
+            lastCount.lastMessage?.let { lm -> BotMessageResponse.toResponse(lm) })
     }
 
     override fun getSessionMessages(id: String, pageable: Pageable): SessionMessagesResponse {
@@ -522,12 +545,24 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
         val responseFiles: MutableList<FileInfoResponse> = mutableListOf()
         multipartFileList.forEach { multipartFile ->
             val name = takeFileName(multipartFile)
+            var width: Int? = null
+            var height: Int? = null
+            try {
+                ImageIO.read(multipartFile.inputStream)?.let {
+                    width = it.width
+                    height = it.height
+                }
+            } catch (_: Exception) {
+            }
+
             val fileInfo = FileInfo(
                 name = name,
                 uploadName = multipartFile.originalFilename!!,
                 extension = FilenameUtils.getExtension(multipartFile.originalFilename),
                 path = getFilePath(name).toString(),
-                size = multipartFile.size
+                size = multipartFile.size,
+                width = width,
+                height = height
             )
             val savedFileInfo = fileInfoRepository.save(fileInfo)
 

@@ -136,7 +136,7 @@ data class BotMessageResponse(
     val text: String?,
     val caption: String?,
     val date: Long,
-    val fileHashIds: List<String>?,
+    val files: List<FileInfoResponse>?,
     val location: LocationResponse?,
     val contact: ContactResponse?,
     val dice: DiceResponse?,
@@ -155,7 +155,7 @@ data class BotMessageResponse(
                     caption,
                     createdDate!!.toInstant().toEpochMilli(),
                     files?.let {
-                        if (it.isNotEmpty()) it.map { u -> u.hashId }
+                        if (it.isNotEmpty()) it.map { u -> FileInfoResponse.toResponse(u) }
                         else null
                     },
                     location?.let { LocationResponse.toResponse(it) },
@@ -229,18 +229,20 @@ data class DiceResponse(
     }
 }
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 data class FileInfoResponse(
-    val id: Long,
     val upload: String,
     val name: String,
     val hashId: String,
     val extension: String,
     val size: Long,
+    val width: Int?,
+    val height: Int?,
 ) {
     companion object {
-        fun toResponse(file: FileInfo): FileInfoResponse = FileInfoResponse(
-            file.id!!, file.uploadName, file.name, file.hashId, file.extension, file.size
-        )
+        fun toResponse(file: FileInfo): FileInfoResponse = file.run {
+            FileInfoResponse(uploadName, name, hashId, extension, size, width, height)
+        }
     }
 }
 
@@ -302,9 +304,11 @@ data class SavedTgFileResponse(
     val extension: String,
     val path: String,
     val size: Long,
+    val width: Int?,
+    val height: Int?,
 ) {
     fun toEntity(): FileInfo {
-        return FileInfo(name, name, extension, path, size)
+        return FileInfo(name, name, extension, path, size, width, height)
     }
 }
 

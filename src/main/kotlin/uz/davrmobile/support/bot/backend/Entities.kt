@@ -139,7 +139,10 @@ class FileInfo(
     @Column(nullable = false) val extension: String,
     @Column(nullable = false) val path: String,
     @Column(nullable = false) val size: Long,
-    @Column(nullable = false, unique = true) val hashId: String = randomHashId(),
+    val width: Int?,
+    val height: Int?,
+    @Column(nullable = false, unique = true)
+    val hashId: String = randomHashId(),
 ) : BaseEntity()
 
 @Entity

@@ -22,6 +22,7 @@ import uz.davrmobile.support.bot.backend.*
 import uz.davrmobile.support.bot.bot.Utils.Companion.clearPhone
 import uz.davrmobile.support.bot.bot.Utils.Companion.htmlBold
 import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
+import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -29,6 +30,7 @@ import java.time.LocalDate
 import java.util.*
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import javax.imageio.ImageIO
 
 open class SupportTelegramBot(
     var username: String,
@@ -288,10 +290,20 @@ open class SupportTelegramBot(
         Paths.get(filePath).parent?.let { directoryPath ->
             if (!Files.exists(directoryPath)) Files.createDirectories(directoryPath)
         }
+
         FileOutputStream(filePath).use { outputStream ->
             inputStream.copyTo(outputStream, bufferSize = 64 * 1024)
         }
-        return SavedTgFileResponse(fileName, fileExtension, filePath, fileSize)
+        var width: Int? = null
+        var height: Int? = null
+        try {
+            ImageIO.read(File(filePath))?.let {
+                width = it.width
+                height = it.height
+            }
+        } catch (_: Exception) {
+        }
+        return SavedTgFileResponse(fileName, fileExtension, filePath, fileSize, width, height)
     }
 
     private fun downloadAndSaveFile(fileIdAndFileName: String): FileInfo {
@@ -299,7 +311,9 @@ open class SupportTelegramBot(
         val fileId = fileIdAndFileName.substringBefore("$%%%$")
 
         val file = saveFile(fileId)
-        return fileInfoRepository.save(FileInfo(file.name, uploadFileName, file.extension, file.path, file.size))
+        return fileInfoRepository.save(
+            file.run { FileInfo(name, uploadFileName, extension, path, size, width, height) }
+        )
     }
 
     private fun saveUserPhoneNumber(user: BotUser, phoneNumber: String) {
@@ -360,15 +374,15 @@ open class SupportTelegramBot(
                         user.state = UserStateEnum.ACTIVE_USER
                         userRepository.save(user)
                         this.execute(DeleteMessage(chatId.toString(), callbackQuery.message.messageId))
-                            user.languages = mutableSetOf(lang)
-                            user.state = UserStateEnum.ACTIVE_USER
-                            userRepository.save(user)
+                        user.languages = mutableSetOf(lang)
+                        user.state = UserStateEnum.ACTIVE_USER
+                        userRepository.save(user)
 
-                            try {
-                                this.execute(DeleteMessage(chatId.toString(), callbackQuery.message.messageId))
-                            } catch (_: Exception) {
+                        try {
+                            this.execute(DeleteMessage(chatId.toString(), callbackQuery.message.messageId))
+                        } catch (_: Exception) {
 
-                            }
+                        }
 
                         if (user.phoneNumber.isEmpty()) {
                             sendSharePhoneMsg(user)

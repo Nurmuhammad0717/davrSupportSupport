@@ -86,10 +86,30 @@ WHERE s.operator_id = :operatorId
 
     @Query(
         value = """
-SELECT * FROM session s WHERE s.bot_id IN (SELECT b.chat_id FROM bot b JOIN bot_operator_ids boi ON b.id = boi.bot_id WHERE b.status = ?1 AND b.deleted = FALSE AND boi.operator_ids = ?2) AND s.deleted = FALSE AND s.status = ?3 AND s.language IN (?4)
+            SELECT *
+            FROM session s
+            WHERE s.bot_id IN (SELECT b.chat_id
+                               FROM bot b
+                                        JOIN bot_operator_ids boi ON b.id = boi.bot_id
+                               WHERE b.status = ?1
+                                 AND b.deleted = FALSE
+                                 AND boi.operator_ids = ?2)
+              AND s.deleted = FALSE
+              AND s.status = ?3
+              AND s.language IN (?4)
                 """,
         countQuery = """
-SELECT count(*) FROM session s WHERE s.bot_id IN (SELECT b.chat_id FROM bot b JOIN bot_operator_ids boi ON b.id = boi.bot_id WHERE b.status = ?1 AND b.deleted = FALSE AND boi.operator_ids = ?2) AND s.deleted = FALSE AND s.status = ?3 AND s.language IN (?4)
+            SELECT count(*)
+            FROM session s
+            WHERE s.bot_id IN (SELECT b.chat_id
+                               FROM bot b
+                                        JOIN bot_operator_ids boi ON b.id = boi.bot_id
+                               WHERE b.status = ?1
+                                 AND b.deleted = FALSE
+                                 AND boi.operator_ids = ?2)
+              AND s.deleted = FALSE
+              AND s.status = ?3
+              AND s.language IN (?4)
     """,
         nativeQuery = true
     )
