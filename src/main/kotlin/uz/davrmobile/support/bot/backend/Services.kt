@@ -11,6 +11,7 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageTe
 import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.meta.api.objects.media.*
 import uz.davrmobile.support.bot.bot.SupportTelegramBot
+import uz.davrmobile.support.bot.bot.Utils.Companion.createFilesDirForToday
 import uz.davrmobile.support.bot.bot.Utils.Companion.isAdmin
 import uz.davrmobile.support.util.userId
 import java.io.File
@@ -19,7 +20,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
-import java.time.LocalDate
 import java.util.*
 import javax.imageio.ImageIO
 import javax.servlet.http.HttpServletResponse
@@ -59,6 +59,7 @@ interface StatisticService {
 
 interface MessageToOperatorService {
     fun getWaitingSessions(request: GetSessionRequest, pageable: Pageable): Page<SessionResponse>
+    fun getClosedSessions(pageable: Pageable): Page<SessionResponse>
     fun getMySessions(pageable: Pageable): Page<SessionResponse>
     fun getSessionMessages(id: String, pageable: Pageable): SessionMessagesResponse
     fun getUnreadMessages(id: String, pageable: Pageable): SessionMessagesResponse
@@ -119,15 +120,12 @@ class MessageToOperatorServiceImpl(
 ) : MessageToOperatorService {
     override fun getMySessions(pageable: Pageable): Page<SessionResponse> {
         return sessionRepository.findAllByOperatorIdAndStatus(
-            userId(),
-            SessionStatusEnum.BUSY,
-            pageable
+            userId(), SessionStatusEnum.BUSY, pageable
         ).map { sessionToResp(it) }
     }
 
     override fun getWaitingSessions(request: GetSessionRequest, pageable: Pageable): Page<SessionResponse> {
-        if (request.languages.isEmpty())
-            request.languages.addAll(LanguageEnum.values())
+        if (request.languages.isEmpty()) request.languages.addAll(LanguageEnum.values())
 
         return sessionRepository.getWaitingSessions(
             BotStatusEnum.ACTIVE.toString(),
@@ -138,13 +136,16 @@ class MessageToOperatorServiceImpl(
         ).map { sessionToRespHasReadFalse(it) }
     }
 
+    override fun getClosedSessions(pageable: Pageable): Page<SessionResponse> {
+        return sessionRepository.findClosedSessions(
+            pageable, userId()
+        )
+    }
+
     private fun sessionToRespHasReadFalse(session: Session): SessionResponse {
-        val messages =
-            botMessageRepository.findLastMessageWithCountBySessionIdAndHasReadFalse(
-                session.id!!,
-                session.botId,
-                BotStatusEnum.ACTIVE
-            )
+        val messages = botMessageRepository.findLastMessageWithCountBySessionIdAndHasReadFalse(
+            session.id!!, session.botId, BotStatusEnum.ACTIVE
+        )
         val lastCount = (if (messages.isNotEmpty()) messages[0] else null)
         lastCount?.bot ?: throw BotNotFoundException()
         return SessionResponse.toResponse(
@@ -155,12 +156,9 @@ class MessageToOperatorServiceImpl(
     }
 
     private fun sessionToResp(session: Session): SessionResponse {
-        val messages =
-            botMessageRepository.findLastMessageWithCountBySessionId(
-                session.id!!,
-                session.botId,
-                BotStatusEnum.ACTIVE
-            )
+        val messages = botMessageRepository.findLastMessageWithCountBySessionId(
+            session.id!!, session.botId, BotStatusEnum.ACTIVE
+        )
         val lastCount = (if (messages.isNotEmpty()) messages[0] else null)
         lastCount?.bot ?: throw BotNotFoundException()
         return SessionResponse.toResponse(
@@ -210,8 +208,7 @@ class MessageToOperatorServiceImpl(
                 val send = SendMessage(userId, text)
                 send.replyToMessageId = message.replyMessageId
                 val ex = absSender.execute(send)
-                BotMessageResponse
-                    .toResponse(newSessionMsg(message, session, operatorId, ex.messageId))
+                BotMessageResponse.toResponse(newSessionMsg(message, session, operatorId, ex.messageId))
             }
 
             BotMessageType.CONTACT -> {
@@ -248,18 +245,14 @@ class MessageToOperatorServiceImpl(
                     val fileInfo = fileInfoRepository.findByHashId(fileHashId)!!
                     val send = SendAnimation()
                     send.chatId = userId
-                    send.animation =
-                        InputFile(File(Paths.get(fileInfo.path).toAbsolutePath().toString()))
-                    if (!message.caption.isNullOrEmpty())
-                        if (message.caption.length > 4096)
-                            throw MaximumTextLengthException()
-                        else send.caption = message.caption
+                    send.animation = InputFile(File(Paths.get(fileInfo.path).toAbsolutePath().toString()))
+                    if (!message.caption.isNullOrEmpty()) if (message.caption.length > 4096) throw MaximumTextLengthException()
+                    else send.caption = message.caption
                     send.replyToMessageId = message.replyMessageId
                     val ex = absSender.execute(send)
-                    lastMsg = BotMessageResponse
-                        .toResponse(
-                            newSessionMsg(message, session, operatorId, ex.messageId, fileInfos = listOf(fileInfo))
-                        )
+                    lastMsg = BotMessageResponse.toResponse(
+                        newSessionMsg(message, session, operatorId, ex.messageId, fileInfos = listOf(fileInfo))
+                    )
                 }
                 lastMsg!!
             }
@@ -324,10 +317,8 @@ class MessageToOperatorServiceImpl(
             for ((index, inputMedia) in inputMediaList.withIndex()) {
                 val send = InputMediaDocument()
                 send.setMedia(inputMedia.newMediaFile, inputMedia.mediaName)
-                if (inputMediaList.size - 1 == index && !caption.isNullOrEmpty())
-                    if (message.caption.length > 4096)
-                        throw MaximumTextLengthException()
-                    else send.caption = message.caption
+                if (inputMediaList.size - 1 == index && !caption.isNullOrEmpty()) if (message.caption.length > 4096) throw MaximumTextLengthException()
+                else send.caption = message.caption
                 inputMediaListTemp.add(send)
             }
         } else inputMediaListTemp = inputMediaList
@@ -342,10 +333,8 @@ class MessageToOperatorServiceImpl(
                     absSender.execute(SendAnimation().apply {
                         chatId = userId
                         animation = inputFile
-                        if (!caption.isNullOrEmpty())
-                            if (message.caption.length > 4096)
-                                throw MaximumTextLengthException()
-                            else this.caption = caption
+                        if (!caption.isNullOrEmpty()) if (message.caption.length > 4096) throw MaximumTextLengthException()
+                        else this.caption = caption
                         replyToMessageId = replyMessageId
                     })
                 }
@@ -354,10 +343,8 @@ class MessageToOperatorServiceImpl(
                     absSender.execute(SendVideo().apply {
                         chatId = userId
                         video = inputFile
-                        if (!caption.isNullOrEmpty())
-                            if (message.caption.length > 4096)
-                                throw MaximumTextLengthException()
-                            else this.caption = caption
+                        if (!caption.isNullOrEmpty()) if (message.caption.length > 4096) throw MaximumTextLengthException()
+                        else this.caption = caption
                         replyToMessageId = replyMessageId
                     })
                 }
@@ -366,10 +353,8 @@ class MessageToOperatorServiceImpl(
                     absSender.execute(SendPhoto(userId, inputFile).apply {
                         chatId = userId
                         photo = inputFile
-                        if (!caption.isNullOrEmpty())
-                            if (message.caption.length > 4096)
-                                throw MaximumTextLengthException()
-                            else this.caption = caption
+                        if (!caption.isNullOrEmpty()) if (message.caption.length > 4096) throw MaximumTextLengthException()
+                        else this.caption = caption
                         replyToMessageId = replyMessageId
                     })
                 }
@@ -378,10 +363,8 @@ class MessageToOperatorServiceImpl(
                     absSender.execute(SendAudio().apply {
                         chatId = userId
                         audio = inputFile
-                        if (!caption.isNullOrEmpty())
-                            if (message.caption.length > 4096)
-                                throw MaximumTextLengthException()
-                            else this.caption = caption
+                        if (!caption.isNullOrEmpty()) if (message.caption.length > 4096) throw MaximumTextLengthException()
+                        else this.caption = caption
                         replyToMessageId = replyMessageId
                     })
                 }
@@ -390,10 +373,8 @@ class MessageToOperatorServiceImpl(
                     absSender.execute(SendDocument().apply {
                         chatId = userId
                         document = inputFile
-                        if (!caption.isNullOrEmpty())
-                            if (message.caption.length > 4096)
-                                throw MaximumTextLengthException()
-                            else this.caption = caption
+                        if (!caption.isNullOrEmpty()) if (message.caption.length > 4096) throw MaximumTextLengthException()
+                        else this.caption = caption
                         replyToMessageId = replyMessageId
                     })
                 }
@@ -442,8 +423,7 @@ class MessageToOperatorServiceImpl(
             else -> InputMediaDocument()
         }
         inputMedia.setMedia(filePath, fileName)
-        if (!caption.isNullOrEmpty())
-            inputMedia.caption = caption
+        if (!caption.isNullOrEmpty()) inputMedia.caption = caption
         return inputMedia
     }
 
@@ -532,9 +512,6 @@ class MessageToOperatorServiceImpl(
 
 @Service
 class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : FileInfoService {
-
-    private val path: String = "files/${LocalDate.now()}"
-
     override fun upload(multipartFileList: MutableList<MultipartFile>): UploadFileResponse {
         val responseFiles: MutableList<FileInfoResponse> = mutableListOf()
         multipartFileList.forEach { multipartFile ->
@@ -614,8 +591,8 @@ class FileInfoServiceImpl(private val fileInfoRepository: FileInfoRepository) : 
         return result.map { FileInfoResponse.toResponse(it) }
     }
 
-    private fun getFilePath(name: String): Path {
-        return Paths.get(path, name)
+    private fun getFilePath(fileName: String): Path {
+        return Paths.get(createFilesDirForToday(), fileName)
     }
 
     private fun takeFileName(multipartFile: MultipartFile): String {
@@ -674,9 +651,7 @@ class StatisticServiceImpl(private val sessionRepository: SessionRepository) : S
         operatorId: Long?, startDate: Date, endDate: Date
     ): SessionInfoByOperatorResponse {
         if (operatorId == null) return sessionRepository.findSessionInfoByOperatorIdDateRange(
-            startDate,
-            endDate,
-            userId()
+            startDate, endDate, userId()
         ) ?: throw InformationNotFoundException()
         if (isAdmin()) {
             return sessionRepository.findSessionInfoByOperatorIdDateRange(startDate, endDate, operatorId)

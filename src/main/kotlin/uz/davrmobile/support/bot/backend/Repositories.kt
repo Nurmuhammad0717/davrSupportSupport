@@ -75,6 +75,13 @@ interface SessionRepository : BaseRepository<Session> {
 
     @Query(
         value = """
+SELECT s.id as id, 0 as newMessagesCount, s.created_date as "date", (case when s.language = 0 then 'UZ' when s.language = 1 then 'RU' when s.language = 2 then 'EN' end) as "language", (select b.hash_id as id, b.username as username, b.name as "name", b.status as status, b.mini_photo_id as miniPhotoId, b.big_photo_id as bigPhotoId from bot b where b.chat_id = s.bot_id) as bot, (select u.id as id, u.full_name as fullName, u.mini_photo_id as miniPhotoId, u.big_photo_id as bigPhotoId from bot_user u where u.id = s.user_id) as "user" FROM session s WHERE s.operator_id = ?1 AND s.status = 'CLOSED'
+        """, nativeQuery = true
+    )
+    fun findClosedSessions(pageable: Pageable, operatorId: Long): Page<SessionResponse>
+
+    @Query(
+        value = """
             SELECT *
             FROM session s
             WHERE s.bot_id IN (SELECT b.chat_id

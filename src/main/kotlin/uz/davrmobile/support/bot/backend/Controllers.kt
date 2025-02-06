@@ -60,6 +60,11 @@ class OperatorController(
         messageToOperatorService.getWaitingSessions(request, pageable)
 
     @IsModerator
+    @PostMapping("sessions/closed")
+    fun getClosedSessions(pageable: Pageable) =
+        messageToOperatorService.getClosedSessions(pageable)
+
+    @IsModerator
     @PostMapping("take-session/{id}")
     fun takeSession(@PathVariable id: String) = messageToOperatorService.takeSession(id)
 

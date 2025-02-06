@@ -24,9 +24,6 @@ import uz.davrmobile.support.bot.bot.Utils.Companion.htmlBold
 import uz.davrmobile.support.bot.bot.Utils.Companion.randomHashId
 import java.io.File
 import java.io.FileOutputStream
-import java.nio.file.Files
-import java.nio.file.Paths
-import java.time.LocalDate
 import java.util.*
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -286,11 +283,7 @@ open class SupportTelegramBot(
         val fileSize = fileFromTelegram.fileSize
         val fileExtension = fileName.substringAfterLast(".")
         fileName = fileName.substringBeforeLast(".") + randomHashId() + "." + fileExtension
-        val filePath = "./files/${LocalDate.now()}/$fileName"
-        Paths.get(filePath).parent?.let { directoryPath ->
-            if (!Files.exists(directoryPath)) Files.createDirectories(directoryPath)
-        }
-
+        val filePath = Utils.createFilesDirForToday() + "/$fileName"
         FileOutputStream(filePath).use { outputStream ->
             inputStream.copyTo(outputStream, bufferSize = 64 * 1024)
         }
@@ -312,8 +305,7 @@ open class SupportTelegramBot(
 
         val file = saveFile(fileId)
         return fileInfoRepository.save(
-            file.run { FileInfo(name, uploadFileName, extension, path, size, width, height) }
-        )
+            file.run { FileInfo(name, uploadFileName, extension, path, size, width, height) })
     }
 
     private fun saveUserPhoneNumber(user: BotUser, phoneNumber: String) {
@@ -434,8 +426,9 @@ open class SupportTelegramBot(
             }
             val bigPhotoSize = photo[photo.lastIndex]
             user.miniPhotoId = fileInfoRepository.save(this.saveFile(miniPhotoSize.fileId).toEntity()).hashId
-            user.bigPhotoId = if (miniPhotoSize.fileId != bigPhotoSize.fileId)
-                fileInfoRepository.save(this.saveFile(bigPhotoSize.fileId).toEntity()).hashId
+            user.bigPhotoId = if (miniPhotoSize.fileId != bigPhotoSize.fileId) fileInfoRepository.save(
+                this.saveFile(bigPhotoSize.fileId).toEntity()
+            ).hashId
             else user.miniPhotoId
             userRepository.save(user)
         }
