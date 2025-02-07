@@ -59,7 +59,6 @@ interface StatisticService {
 
 interface MessageToOperatorService {
     fun getWaitingSessions(request: GetSessionRequest, pageable: Pageable): Page<SessionResponse>
-    fun getClosedSessions(pageable: Pageable): Page<SessionResponse>
     fun getMySessions(pageable: Pageable): Page<SessionResponse>
     fun getSessionMessages(id: String, pageable: Pageable): SessionMessagesResponse
     fun getUnreadMessages(id: String, pageable: Pageable): SessionMessagesResponse
@@ -135,12 +134,6 @@ class MessageToOperatorServiceImpl(
             request.languages.map { it.ordinal },
             pageable
         ).map { sessionToRespHasReadFalse(it) }
-    }
-
-    override fun getClosedSessions(pageable: Pageable): Page<SessionResponse> {
-        return sessionRepository.findClosedSessions(
-            pageable, userId()
-        )
     }
 
     private fun sessionToRespHasReadFalse(session: Session): SessionResponse {

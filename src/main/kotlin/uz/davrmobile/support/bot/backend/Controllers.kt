@@ -42,6 +42,10 @@ class BotController(private val botService: BotService) {
     @IsModerator
     @PostMapping("leave/{id}")
     fun removeBot(@PathVariable id: String) = botService.removeBotFromOperator(id)
+
+    @IsModerator
+    @GetMapping("active-bots")
+    fun activeBots(pageable: Pageable) = botService.getAllActiveBots(pageable)
 }
 
 @RestController
@@ -93,8 +97,6 @@ class OperatorController(
     @GetMapping("bots")
     fun getOperatorBots() = messageToOperatorService.getOperatorBots()
 
-    @GetMapping("closed-sessions")
-    fun getClosedSessions(pageable: Pageable) = messageToOperatorService.getClosedSessions(pageable)
 }
 
 @RestController
