@@ -118,10 +118,10 @@ data class SessionMessagesResponse(
     val sessionId: String, val from: UserResponse, val messages: Page<BotMessageResponse>
 ) {
     companion object {
-        fun toResponse(session: Session, unreadMessages: Page<BotMessage>): SessionMessagesResponse {
+        fun toResponse(session: Session, unreadMessages: Page<BotMessageResponse>): SessionMessagesResponse {
             return session.run {
                 SessionMessagesResponse(
-                    hashId, UserResponse.toResponse(user), unreadMessages.map { BotMessageResponse.toResponse(it) })
+                    hashId, UserResponse.toResponse(user), unreadMessages)
             }
         }
     }
@@ -141,7 +141,8 @@ data class BotMessageResponse(
     val contact: ContactResponse?,
     val dice: DiceResponse?,
     var edited: Boolean = false,
-    var from: Long
+    var from: Long,
+    var hasRead: Boolean,
 ) {
     companion object {
         fun toResponse(botMessage: BotMessage): BotMessageResponse {
@@ -162,7 +163,8 @@ data class BotMessageResponse(
                     contact?.let { ContactResponse.toResponse(it) },
                     dice?.let { DiceResponse.toResponse(it) },
                     (botMessage.originalText != null || botMessage.originalCaption != null),
-                    botMessage.fromOperatorId ?: botMessage.user!!.id
+                    botMessage.fromOperatorId ?: botMessage.user!!.id,
+                    hasRead
                 )
 
             }

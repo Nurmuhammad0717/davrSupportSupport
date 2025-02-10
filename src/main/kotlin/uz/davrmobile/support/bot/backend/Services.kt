@@ -69,6 +69,7 @@ interface MessageToOperatorService {
     fun takeSession(id: String)
     fun getOperatorBots(): GetOperatorBotsResponse
     fun getClosedSessions(pageable: Pageable): Page<ClosedSessionResponse>
+    fun getActiveSessions(pageable: Pageable,operatorId:Long?): Page<SessionResponse>
 }
 
 @Service
@@ -151,11 +152,12 @@ class MessageToOperatorServiceImpl(
     override fun getSessionMessages(id: String, pageable: Pageable): SessionMessagesResponse {
         val session = sessionRepository.findByHashId(id) ?: throw SessionNotFoundException()
         val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(session.id!!, pageable)
+        val result = messages.map { BotMessageResponse.toResponse(it) }
         if (Objects.equals(userId(), session.operatorId)) {
             messages.map { it.hasRead = true }
             botMessageRepository.saveAll(messages)
         }
-        return SessionMessagesResponse.toResponse(session, messages)
+        return SessionMessagesResponse.toResponse(session,result)
     }
 
     @Transactional
@@ -165,7 +167,7 @@ class MessageToOperatorServiceImpl(
             botMessageRepository.findAllBySessionIdAndHasReadFalseAndDeletedFalse(session.id!!, pageable)
         for (unreadMessage in unreadMessages) unreadMessage.hasRead = true
         botMessageRepository.saveAll(unreadMessages)
-        return SessionMessagesResponse.toResponse(session, unreadMessages)
+        return SessionMessagesResponse.toResponse(session, unreadMessages.map { BotMessageResponse.toResponse(it) })
 
     }
 
@@ -498,6 +500,16 @@ class MessageToOperatorServiceImpl(
         return sessionRepository.findClosedSessions(pageable, userId()).map {
             ClosedSessionResponse.toResponse(it)
         }
+    }
+
+    override fun getActiveSessions(pageable: Pageable, operatorId: Long?): Page<SessionResponse> {
+        val result: Page<Session>
+        if(operatorId != null) {
+            result = sessionRepository.findAllByOperatorIdAndStatus(operatorId, SessionStatusEnum.BUSY,pageable)
+        }else{
+            result = sessionRepository.findAllByStatus(SessionStatusEnum.BUSY,pageable)
+        }
+        return result.map { sessionToResp(it)}
     }
 
 }

@@ -126,6 +126,7 @@ interface SessionRepository : BaseRepository<Session> {
 
     fun findAllByOperatorIdAndStatus(operatorId: Long, status: SessionStatusEnum, pageable: Pageable): Page<Session>
     override fun findByIdAndDeletedFalse(id: Long): Session?
+    fun findAllByStatus(status: SessionStatusEnum,pageable: Pageable): Page<Session>
 
     @Query(
         value = "SELECT * FROM session s " +

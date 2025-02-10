@@ -4,6 +4,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import uz.davrmobile.support.bot.bot.BotService
+import uz.davrmobile.support.util.IsAdmin
 import uz.davrmobile.support.util.IsModerator
 import javax.servlet.http.HttpServletResponse
 import javax.validation.Valid
@@ -53,6 +54,10 @@ class BotController(private val botService: BotService) {
 class OperatorController(
     private val messageToOperatorService: MessageToOperatorService,
 ) {
+    @IsAdmin
+    @GetMapping("sessions/active/{id}")
+    fun getActiveSessions(@PathVariable id:Long?, pageable: Pageable) = messageToOperatorService.getActiveSessions(pageable,id)
+
     @IsModerator
     @PostMapping("sessions/my")
     fun getMySessions(pageable: Pageable) =
@@ -77,10 +82,6 @@ class OperatorController(
     fun getSessionMessages(@PathVariable id: String, pageable: Pageable) =
         messageToOperatorService.getSessionMessages(id, pageable)
 
-    @IsModerator
-    @GetMapping("unread-messages/{id}")
-    fun getUnreadMessages(@PathVariable id: String, pageable: Pageable) =
-        messageToOperatorService.getUnreadMessages(id, pageable)
 
     @IsModerator
     @PostMapping("send-msg")
