@@ -89,14 +89,14 @@ data class SessionResponse(
     val user: UserSessionResponse,
     val bot: BotResponse,
     val status: SessionStatusEnum,
-    val newMessagesCount: Int,
+    val newMessagesCount: Int?,
     val language: LanguageEnum,
     val date: Long,
     var lastMessage: BotMessageResponse? = null,
 ) {
     companion object {
         fun toResponse(
-            session: Session, messageCount: Int, bot: Bot, lastMessage: BotMessageResponse?
+            session: Session, messageCount: Int?, bot: Bot, lastMessage: BotMessageResponse?
         ): SessionResponse {
             session.run {
                 return SessionResponse(
@@ -288,7 +288,7 @@ interface SessionInfoByOperatorResponse {
 }
 
 data class OperatorEditMsgRequest(
-    val sessionId: String?,
+    val sessionId: String,
     val type: BotMessageType?,
     val messageId: Long?,
     @Nullable val text: String?,
@@ -321,8 +321,7 @@ data class UploadFileResponse(
 )
 
 interface LastMessageWithCount {
-    val lastMessage: BotMessage?
-    val unreadMessageCount: Int
+    val unreadMessageCount: Int?
     val bot: Bot?
 }
 

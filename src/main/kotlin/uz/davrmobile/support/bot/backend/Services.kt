@@ -118,6 +118,7 @@ class MessageToOperatorServiceImpl(
     private val locationRepository: LocationRepository
 
 ) : MessageToOperatorService {
+
     override fun getMySessions(pageable: Pageable): Page<SessionResponse> {
         return sessionRepository.findAllByOperatorIdAndStatus(
             userId(), SessionStatusEnum.BUSY, pageable
@@ -133,38 +134,27 @@ class MessageToOperatorServiceImpl(
             SessionStatusEnum.WAITING.toString(),
             request.languages.map { it.ordinal },
             pageable
-        ).map { sessionToRespHasReadFalse(it) }
-    }
-
-    private fun sessionToRespHasReadFalse(session: Session): SessionResponse {
-        val messages = botMessageRepository.findLastMessageWithCountBySessionIdAndHasReadFalse(
-            session.id!!, session.botId, BotStatusEnum.ACTIVE
-        )
-        val lastCount = (if (messages.isNotEmpty()) messages[0] else null)
-        lastCount?.bot ?: throw BotNotFoundException()
-        return SessionResponse.toResponse(
-            session,
-            lastCount.unreadMessageCount,
-            lastCount.bot!!,
-            lastCount.lastMessage?.let { lm -> BotMessageResponse.toResponse(lm) })
+        ).map { sessionToResp(it) }
     }
 
     private fun sessionToResp(session: Session): SessionResponse {
-        val messages = botMessageRepository.findLastMessageWithCountBySessionId(
-            session.id!!, session.botId, BotStatusEnum.ACTIVE
-        )
+        val messages = sessionRepository.getSessionLastMessageWithUnreadCount(session.id!!)
         val lastCount = (if (messages.isNotEmpty()) messages[0] else null)
         lastCount?.bot ?: throw BotNotFoundException()
+        val lastMsg = botMessageRepository.findFirstBySessionOrderByCreatedDateDesc(session)
         return SessionResponse.toResponse(
             session,
             lastCount.unreadMessageCount,
-            lastCount.bot!!,
-            lastCount.lastMessage?.let { lm -> BotMessageResponse.toResponse(lm) })
+            lastCount.bot!!, lastMsg?.let { BotMessageResponse.toResponse(it) })
     }
 
     override fun getSessionMessages(id: String, pageable: Pageable): SessionMessagesResponse {
         val session = sessionRepository.findByHashId(id) ?: throw SessionNotFoundException()
         val messages = botMessageRepository.findAllBySessionIdAndDeletedFalse(session.id!!, pageable)
+        if (Objects.equals(userId(), session.operatorId)) {
+            messages.map { it.hasRead = true }
+            botMessageRepository.saveAll(messages)
+        }
         return SessionMessagesResponse.toResponse(session, messages)
     }
 
@@ -431,7 +421,8 @@ class MessageToOperatorServiceImpl(
     }
 
     override fun editMessage(message: OperatorEditMsgRequest) {
-        val msg = botMessageRepository.findByMessageIdAndDeletedFalse(message.messageId!!.toInt())
+        val session = sessionRepository.findByHashId(message.sessionId)?: throw SessionNotFoundException()
+        val msg = botMessageRepository.findByMessageIdAndSessionAndDeletedFalse(message.messageId!!.toInt(),session)
             ?: throw MessageNotFoundException()
         editMessage(message.text, message.caption, msg)
     }

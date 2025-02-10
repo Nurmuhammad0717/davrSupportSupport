@@ -26,37 +26,8 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
     fun findAllBySessionIdAndDeletedFalse(sessionId: Long, pageable: Pageable): Page<BotMessage>
     fun findAllBySessionIdAndHasReadFalseAndDeletedFalse(sessionId: Long, pageable: Pageable): Page<BotMessage>
     fun findByUserIdAndMessageId(userId: Long, messageId: Int): BotMessage?
-
-    @Query(
-        """
-        SELECT m AS lastMessage, COUNT(m) AS unreadMessageCount, (select b from Bot b where b.chatId = :chatId and b.status = :status and b.deleted = false) as bot
-        FROM bot_message m
-        WHERE m.session.id = :sessionId AND m.hasRead = false
-        GROUP BY m.id
-        ORDER BY m.createdDate DESC
-    """
-    )
-    fun findLastMessageWithCountBySessionIdAndHasReadFalse(
-        sessionId: Long,
-        chatId: Long,
-        status: BotStatusEnum
-    ): List<LastMessageWithCount>
-
-    @Query(
-        """
-        SELECT m AS lastMessage, COUNT(m) AS unreadMessageCount, (select b from Bot b where b.chatId = :chatId and b.status = :status and b.deleted = false) as bot
-        FROM bot_message m
-        WHERE m.session.id = :sessionId
-        GROUP BY m.id
-        ORDER BY m.createdDate DESC
-    """
-    )
-    fun findLastMessageWithCountBySessionId(
-        sessionId: Long,
-        chatId: Long,
-        status: BotStatusEnum
-    ): List<LastMessageWithCount>
-
+    fun findFirstBySessionOrderByCreatedDateDesc(session: Session) : BotMessage?
+    fun findByMessageIdAndSessionAndDeletedFalse(messageId: Int, session: Session): BotMessage?
     @Query(
         """
             SELECT NEW map(m.session as session, m as message)
@@ -68,9 +39,25 @@ interface BotMessageRepository : BaseRepository<BotMessage> {
     fun findByMessageIdAndDeletedFalse(messageId: Int): BotMessage?
 }
 
-
 @Repository
 interface SessionRepository : BaseRepository<Session> {
+
+    @Query(
+        """
+    SELECT 
+        COUNT(CASE WHEN m.hasRead = false THEN 1 END) AS unreadMessageCount, 
+        b AS bot
+    FROM Session s
+    LEFT JOIN bot_message m ON m.session.id = s.id
+    LEFT JOIN Bot b ON b.chatId = s.botId
+    WHERE s.id = :sessionId
+    GROUP BY s.id,b.id
+    """
+    )
+    fun getSessionLastMessageWithUnreadCount(
+        @Param("sessionId") sessionId: Long
+    ): List<LastMessageWithCount>
+
 
     @Query(
         value = """
